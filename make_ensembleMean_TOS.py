@@ -813,7 +813,7 @@ if __name__=="__main__":
     if not os.path.exists(tmpdirHist): os.makedirs(tmpdirHist)
 
     processing='climato'
-    print processing
+
     if processing == 'tos':
         # avgYearRegrid(variable, indir, tmpdir, 2006, 2010)
         # yearlyAvg(variable, tmpdir, outdir, 2006, 2050)
