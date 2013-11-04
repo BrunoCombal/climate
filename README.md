@@ -9,7 +9,6 @@ Python scripts require cdms2 library to be installed, this library generaly come
 $: source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 $: ./make_ensembleMean_TOS.py
 
-
-- make_ensembleMean_TOS.py
-a script to compute an ensemble mean (and min, max, std) from CMIP5/ESGF datasets (Sea Surface Temperature, named TOS, Temperature Of Surface, in CMIP5 naming convention).
+see wiki page:
+https://github.com/BrunoCombal/climate/wiki
 
