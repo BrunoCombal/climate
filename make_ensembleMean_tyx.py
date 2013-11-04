@@ -16,16 +16,22 @@ import random
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT  -minVar MINVAL -maxVar MAXVAL\n'
+    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT\n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR\n'
     textUsage=textUsage+'\tVARIABLE: a netcdf CMIP5 variable name, such as tos, zos, so, thetao;\n'
     textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
     textUsage=textUsage+'\tPATHOUT: output directory, created if does not exist;\n'
     textUsage=textUsage+'\tMINVAL: any value below minVar is considered as nodata;\n'
-    textUsage=textUsage+'\tMAXVAL: any value about'
+    textUsage=textUsage+'\tMAXVAL: any value above maxVar is considered as nodata;\n'
+    textUsage=textUsage+'\tMODELLIST: a text file with a model name per name, the model name is used to select the files to process;\n'
+    textUsage=textUsage+'\tSTARTYEAR: first year in the series of dates to process;\n'
+    textUsage=textUsage+'\tENDYEAR: last year in the series of date to process'
+    textUsage=textUsage+'In first place, the programme will average model output per model (if a model output has several rXiYpZ ensemble, they are averaged. Then, the averages are averaged to produce the ensemble mean.\n'
+    textUsage=textUsage+'Averages are computed for each month of the year.\n'
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
     print msg
+    print
     print usage()
     sys.exit(exitCode)
 # ____________________________
@@ -443,15 +449,21 @@ def monthlyAvg(variable, indir, outdir, minYear=2006, maxYear=2050, select='*'):
 if __name__=="__main__":
 
     print 'To make this script properly work, ensure to source cdat setup file first (source /usr/local/uvcdat/VERSION/bin/setup_cdat.sh)'
+    print
 
     variable = None
     indir = None
     tmpdir = None
     outdir = None
+    # model list: model name (for output), regexp is based on .*_MODEL_.*
+    #['ACCESS1-0', 'ACCESS1-3', 'bcc-csm1-1', 'bcc-csm1-1-m', 'BNU-ESM','CanESM2', 'CCSM4', 'CESM1-BGC', 'CESM1-CAM5', 'CESM1-WACCM','CMCC-CESM', 'CMCC-CM', 'CMCC-CMS', 'CNRM-CM5', 'CSIRO-Mk3-6-0','EC-EARTH', 'FIO-ESM', 'GFDL-CM3', 'GFDL-ESM2G', 'GFDL-ESM2M','GISS-E2-H', 'GISS-E2-H-CC', 'GISS-E2-R', 'GISS-E2-R-CC', 'HadGEM2-AO', 'HadGEM2-CC', 'HadGEM2-ES', 'inmcm4', 'IPSL-CM5A-LR', 'IPSL-CM5A-MR', 'IPSL-CM5B-LR', 'MIROC5', 'MIROC-ESM', 'MPI-ESM-LR','MPI-ESM-MR', 'MRI-CGCM3', 'NorESM1-M', 'NorESM1-ME']
+    modelListFile=None
+    startYear=None
+    endYear=None
 
     ii = 1
     while ii < len(sys.argv):
-        arg = sys.argv[ii]
+        arg = sys.argv[ii].lower()
         
         if arg == '-path':
             ii = ii + 1
@@ -471,34 +483,52 @@ if __name__=="__main__":
         elif arg == '-maxVar':
             ii = ii + 1
             maxVar = float(sys.argv[ii])
-
+        elif arg =='-modellist':
+            ii = ii + 1
+            modelListFile = sys.argv[ii]
+        elif arg=='-startyear':
+            ii = ii + 1
+            startYear = int(sys.argv[ii])
+        elif arg=='-endyear':
+            ii = ii + 1
+            endYear = int(sys.argv[ii]) + 1
         ii = ii + 1
 
-
     if variable is None:
-        exitMessage('Missing variable name, use option -v. Exit 1.', 1)
+        exitMessage('Missing variable name, use option -v. Exit(1).', 1)
     if indir is None:
-        exitMessage('Missing input directory, use option -path. Exit 2',2)
+        exitMessage('Missing input directory, use option -path. Exit(2).',2)
     if outdir is None:
-        exitMessage('Missing output directory, use option -outdir. Exit 3', 3)
+        exitMessage('Missing output directory, use option -outdir. Exit(3).', 3)
+    if modelListFile is None:
+        exitMessage('Missing a model list file, use option -modellist. Exit(12).',12)
+    if startYear is None:
+        exitMessage('Please define a starting year, use option -startyear. Exit(13).',13)
+    if endYear is None:
+        exitMessage('Please define an ending year, use option -endyear. Exit(14).',14)
 
     if tmpdir is None:
         tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
 
     if not os.path.exists(tmpdir): os.makedirs(tmpdir)
     
-    # regrid for projections, only r1i1p1
-    validYearList=range(2030, 2060)
+    # models list
+    modelList=[]
+    try:
+        with open(modelListFile,"r") as f:
+            for textLine in f:
+                thisStr = textLine.replace(" ","").replace('\n','')
+                if not (thisStr==""):
+                    modelList.append( thisStr )
+    except IOError as e:
+        exitMessage('I/O Error {1} while processing text file {0}:{2}. Exit(10).'.format(modelListFile, e.errno, e.strerror), 10)
+    except:
+        exitMessage('Unexpected error while processing text file {0}. Exit(11).'.format(modeListFile), 11)
 
-    # model list: model name (for output), regexp is based on .*_MODEL_.*
-    modelList=['ACCESS1-0', 'ACCESS1-3', 'bcc-csm1-1', 'bcc-csm1-1-m', 'BNU-ESM',
-               'CanESM2', 'CCSM4', 'CESM1-BGC', 'CESM1-CAM5', 'CESM1-WACCM',
-               'CMCC-CESM', 'CMCC-CM', 'CMCC-CMS', 'CNRM-CM5', 'CSIRO-Mk3-6-0',
-               'EC-EARTH', 'FIO-ESM', 'GFDL-CM3', 'GFDL-ESM2G', 'GFDL-ESM2M',
-               'GISS-E2-H', 'GISS-E2-H-CC', 'GISS-E2-R', 'GISS-E2-R-CC', 
-               'HadGEM2-AO', 'HadGEM2-CC', 'HadGEM2-ES', 'inmcm4', 'IPSL-CM5A-LR'
-               'IPSL-CM5A-MR', 'IPSL-CM5B-LR', 'MIROC5', 'MIROC-ESM', 'MPI-ESM-LR'
-               'MPI-ESM-MR', 'MRI-CGCM3', 'NorESM1-M', 'NorESM1-ME']
+    # regrid for projections, only r1i1p1
+    validYearList=range(startYear, endYear)
+    if len(validYearList)==0:
+        exitMessage('No date to process, startYear={0}, endYear{1}. Exit(20).'.format(startYear, endYear),20)
 
     processedFiles=[]
     for thisModel in modelList:
