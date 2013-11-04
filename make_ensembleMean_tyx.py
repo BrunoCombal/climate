@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # to run the script with the correct version of uvcdat:
-#  source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
+#  source /usr/local/uvcdat/1.4.0/bin/setup_runtime.sh
 
 import cdms2
 from cdms2 import MV
@@ -448,7 +448,7 @@ def monthlyAvg(variable, indir, outdir, minYear=2006, maxYear=2050, select='*'):
 #___________________________
 if __name__=="__main__":
 
-    print 'To make this script properly work, ensure to source cdat setup file first (source /usr/local/uvcdat/VERSION/bin/setup_cdat.sh)'
+    print 'To make this script properly work, ensure to source cdat setup file first (source /usr/local/uvcdat/VERSION/bin/setup_runtime.sh)'
     print
 
     variable = None
@@ -532,9 +532,14 @@ if __name__=="__main__":
 
     processedFiles=[]
     for thisModel in modelList:
-        thisModelFiles = do_stats(variable, indir, tmpdir, 'stats_CSIRO_rcp85_', '', validYearList, 'Omon',thisModel,'rcp85', '.*','.*')
+        stringBefore='stats_{0}_{1}.nc'.format(thisModel, 'rcp85')
+        stringAfter=''
+        thisModelFiles = do_stats(variable, indir, tmpdir, stringBefore, stringAfter, validYearList, 'Omon',thisModel,'rcp85', '.*','.*')
         processedFiles.append(thisModelFiles)
         print processedFiles
+
+    print '____________'
+    print processedFiles
 
 #    do_regrid(new_grid, thismodelfiles)
 
