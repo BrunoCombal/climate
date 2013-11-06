@@ -191,7 +191,9 @@ def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
     for fileName in lstInFile:
         print 'processing file ', fileName
         thisFile = cdms2.open(fileName)
-        regrided = cdms2.createVariable(thisFile[variable]).regrid(newGrid)
+        data = cdms2.createVariable(thisFile[variable])
+        regrided = data.regrid(newGrid)
+#        regrided = cdms2.createVariable(thisFile[variable]).regrid(newGrid)
         tmp = cdms2.createVariable(regrided, copyaxes=1, grid=newGrid)
         outfilename = '{0}/{1}{2}.nc'.format(outdir, stringBefore, os.path.basename(fileName))
         if os.path.exists(outfilename): os.remove(outfilename)
@@ -261,7 +263,7 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
 
             # save variables
             xx = MV2.array(accumVar.reshape(dims))
-            newGrid = cdms2.createGenericGrid(refGrid.getLatitude(), refGrid.getLongitude() latBounds=refGrid.getLatitude().getBounds(), lonBounds=refGrid.getLongitude().getBounds())
+            newGrid = cdms2.createGenericGrid(refGrid.getLatitude(), refGrid.getLongitude(), latBounds=refGrid.getLatitude().getBounds(), lonBounds=refGrid.getLongitude().getBounds())
             xx.setGrid(newGrid)
             meanVar = cdms2.createVariable( xx, typecode='f', id='mean',  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
 
@@ -590,12 +592,12 @@ if __name__=="__main__":
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
-        #regridedFiles = do_regrid(variable, indir, lstInFile, tmpdir, 'regrid_')
+        regridedFiles = do_regrid(variable, indir, lstInFile, tmpdir, 'regrid_')
 
 #        pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
 #        lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
-        thisModelFiles = do_stats(variable, indir, lstInFile, tmpdir, 'stats_', '{0}_{1}'.format(thisModel, 'rcp85', 1, 300) )
+        #thisModelFiles = do_stats(variable, indir, lstInFile, tmpdir, 'stats_', '{0}_{1}'.format(thisModel, 'rcp85', 1, 300) )
 
 
 #        processedFiles.append(thisModelFiles)
