@@ -175,7 +175,7 @@ def shiftGrid(infile, outfile, variable, latShift=0, lonShift=-280):
 # ___________________________
 def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 
-    createdFiles={}    
+    createdFiles=[]
     nodata=1.e20
 
     # for netcdf3: set flag to 0
@@ -193,14 +193,15 @@ def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
         thisFile = cdms2.open(fileName)
         data = cdms2.createVariable(thisFile[variable])
         regrided = data.regrid(newGrid)
-#        regrided = cdms2.createVariable(thisFile[variable]).regrid(newGrid)
         tmp = cdms2.createVariable(regrided, copyaxes=1, grid=newGrid)
-        outfilename = '{0}/{1}{2}.nc'.format(outdir, stringBefore, os.path.basename(fileName))
+        outfilename = '{0}/{1}{2}'.format(outdir, stringBefore, os.path.basename(fileName))
+        createdFiles.append(outfilename)
         if os.path.exists(outfilename): os.remove(outfilename)
         outfile = cdms2.open(outfilename, 'w')
         outfile.write(regrided)
         outfile.close()
 
+    return createdFiles
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
 # if a new grid is passed: regrid

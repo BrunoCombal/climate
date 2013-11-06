@@ -2,7 +2,6 @@ ACCESS1-0
 ACCESS1-3
 bcc-csm1-1
 bcc-csm1-1-m
-BNU-ESM
 CanESM2
 CCSM4
 CESM1-BGC
