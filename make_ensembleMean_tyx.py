@@ -4,7 +4,7 @@
 #  source /usr/local/uvcdat/1.4.0/bin/setup_runtime.sh
 
 import cdms2
-from cdms2 import MV
+from cdms2 import MV2
 import numpy
 import glob
 import sys
@@ -101,6 +101,26 @@ def makeGrid():
     lonAxis.long_name='Longitude'
 
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
+# ___________________________
+def updateCountersNew(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
+
+    print dir(accum)
+    myOnes = MV2.ones(accum.array().shape)
+    if accum is None:
+        accum = data
+        mini = data
+        maxi = data
+        print 'xxxx'
+        print dir(accum)
+        N = MV2.zeros( accum.shape , typecode='i') 
+    else:
+
+        accum = accum + MV2.masked_outside(data, minVar, maxVar)
+        miniTmp = MV2.minimum(mini, accum)
+        maxiTmp = MV2.maximum(maxi, accum)
+        N = N 
+
+    return [accum, N, mini, maxi]  
 # ____________________________
 def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
@@ -123,7 +143,7 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
         N[wtadd] = N[wtadd] + 1 #numpy.ones(dim)
     if wtreplace.any():
         accum[wtreplace] = data[wtreplace]
-        N[wtreplace] = numpy.ones(dim)
+        N[wtreplace] = 1 #numpy.ones(dim)
     if wmax.any():
         maxi[wmax] = data[wmax]
     if wmin.any():
@@ -152,17 +172,10 @@ def shiftGrid(infile, outfile, variable, latShift=0, lonShift=-280):
     thisfile.close()
     outFile.close()
     sys.exit(1)
-
 # ___________________________
-# for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
-# if a new grid is passed: regrid
-def do_stats(variable, indir, outdir, stringBeforeDate, stringAfterDate, validYearList=None, selectDATATYPE='Omon',selectMODEL='.*', selectRCP='.*', selectRIP='.*', selectTIMEFRAME='[0-9]*-[0-9]*', minVar=-1.e20, maxVar=1.e20, newGrid=None):
-    
-    if validYearList is None:
-        exitMessage('List of years to process is undefined, edit code. Exit 5.',5)
+def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 
-    createdFiles={}
-    
+    createdFiles={}    
     nodata=1.e20
 
     # for netcdf3: set flag to 0
@@ -170,13 +183,42 @@ def do_stats(variable, indir, outdir, stringBeforeDate, stringAfterDate, validYe
     cdms2.setNetcdfDeflateFlag(1)
     cdms2.setNetcdfDeflateLevelFlag(3)
 
-    # pattern of the file names to retrieve
-    pattern = re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, selectDATATYPE, selectMODEL, selectRCP, selectRIP, selectTIMEFRAME))
+    if len(lstInFile)==0:
+        exitMessage('Found no file to process, consider revising search pattern. Exit 6.',6)
 
-    lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
+    (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
+    print lstInFile
+    for fileName in lstInFile:
+        print 'processing file ', fileName
+        thisFile = cdms2.open(fileName)
+        regrided = cdms2.createVariable(thisFile[variable]).regrid(newGrid)
+        tmp = cdms2.createVariable(regrided, copyaxes=1, grid=newGrid)
+        outfilename = '{0}/{1}{2}.nc'.format(outdir, stringBefore, os.path.basename(fileName))
+        if os.path.exists(outfilename): os.remove(outfilename)
+        outfile = cdms2.open(outfilename, 'w')
+        outfile.write(regrided)
+        outfile.close()
+
+# ___________________________
+# for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
+# if a new grid is passed: regrid
+def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20):
+    
+    if validYearList is None:
+        exitMessage('List of years to process is undefined, edit code. Exit 5.',5)
+
+    createdFiles={}   
+    nodata=1.e20
+
+    # for netcdf3: set flag to 0
+    cdms2.setNetcdfShuffleFlag(1)
+    cdms2.setNetcdfDeflateFlag(1)
+    cdms2.setNetcdfDeflateLevelFlag(3)
 
     if lstInFile is None:
         exitMessage('Found no file to process, consider revising search pattern. Exit 6.',6)
+
+    print lstInFile
 
     # open all files
     listFID=[]
@@ -185,47 +227,60 @@ def do_stats(variable, indir, outdir, stringBeforeDate, stringAfterDate, validYe
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
         print 'Processing year {0}'.format(iyear)
-        for imonth in range(1,13):
+        for imonth in range(1,3):
             print '.',
             accumVar=None
             accumN=None
             mini=None
             maxi=None
+            refGrid=None
+            dims=None
+            units=None
             for ifile in listFID:
                 # get the actual file-date for this year/month (because day numbering vary, sometimes 1, 15 or 16...)
                 thisTime = [ii for ii in ifile[variable].getTime().asComponentTime() if (ii.year==iyear and ii.month==imonth)] 
                 if len(thisTime)==1:
+                    if refGrid is None:
+                        refGrid = ifile[variable].getGrid().toGenericGrid()
+                        print refGrid.getLongitude(), refGrid.getLongitude().shape
+                        dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
+                        units= ifile[variable].units
+
                     [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
                                                                    numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
                                                                    minVar, maxVar, nodata )
-                    dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
+                        
+            # compute average
+            wtdivide = (accumN < nodata) * (accumN > 0)
 
-                    # compute average
-                    wtdivide = (accumN < nodata) * (accumN > 0)
-                    if wtdivide.any():
-                        accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
+            if wtdivide.any():
+                accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
+            accumVar = accumVar/accumN
 
-                    # compute std
+            # compute std
 
-                    # save variables
-                    thisGrid = ifile[variable].getGrid()
-                    print dir(thisGrid)
+            # save variables
+            xx = MV2.array(accumVar.reshape(dims))
+            newGrid = cdms2.createGenericGrid(refGrid.getLatitude(), refGrid.getLongitude() latBounds=refGrid.getLatitude().getBounds(), lonBounds=refGrid.getLongitude().getBounds())
+            xx.setGrid(newGrid)
+            meanVar = cdms2.createVariable( xx, typecode='f', id='mean',  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
 
-                    meanVar = cdms2.createVariable(accumVar.reshape(dims), typecode='f', id='mean', fill_value=nodata,  attributes=dict(long_name='mean', units=ifile[variable].units) )
-                    meanVar.setAxisList( (thisGrid.getLatitude(), thisGrid.getLongitude) )
-                    counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', ill_value=nodata, grid=thisGrid, copyaxes=1, attributes=dict(long_name='count', units='None') )
-                    miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, grid=thisGrid, copyaxes=1, attributes=dict(long_name='minimum', units=ifile[variable].units) )
-                    maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, grid=thisGrid, copyaxes=1, attributes=dict(long_name='maximum', units=ifile[variable].units) )
-                    outfilename = '{0}/{1}{2}{3:02d}{4}.nc'.format(outdir, stringBeforeDate, iyear, imonth,stringAfterDate)
-                    if os.path.exists(outfilename): os.remove(outfilename)
-                    outfile = cdms2.open(outfilename, 'w')
-                    outfile.write(meanVar)
-                    outfile.write(counter)
-                    outfile.write(miniVar)
-                    outfile.write(maxiVar)
-                    outfile.close()
+            meanVar.setAxis(0, refGrid.getLatitude())
+            meanVar.setAxis(1, refGrid.getLongitude())
 
-                    createdFiles['{0}{1}'.format(iyear,imonth)]= outfilename
+            counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
+            miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, attributes=dict(long_name='minimum', units=units) )
+            maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, attributes=dict(long_name='maximum', units=units) )
+            outfilename = '{0}/{1}_{2}_{3}{4}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
+            if os.path.exists(outfilename): os.remove(outfilename)
+            outfile = cdms2.open(outfilename, 'w')
+            outfile.write(meanVar)
+            outfile.write(counter)
+            outfile.write(miniVar)
+            outfile.write(maxiVar)
+            outfile.close()
+
+            createdFiles['{0}{1}'.format(iyear,imonth)]= outfilename
 
     # close input files
     for ii in listFID: ii.close()
@@ -238,7 +293,7 @@ def monthlyRegrid(variable, indir, outdir, validYearList=None, selectDATATYPE='O
     #pattern=re.compile('.*_BNU-ESM_.*') # problem on this grid: longitude shift of about 280degrees, to be corrected with shiftGrid function
 
     # build file selection pattern
-    print '{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, selectDATATYPE, selectMODEL,selectRCP,selectRIP,selectTIMEFRAME)
+    # print '{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, selectDATATYPE, selectMODEL,selectRCP,selectRIP,selectTIMEFRAME)
     pattern = re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, selectDATATYPE, selectMODEL,selectRCP,selectRIP,selectTIMEFRAME))
 
     nodata=1.e20
@@ -260,7 +315,7 @@ def monthlyRegrid(variable, indir, outdir, validYearList=None, selectDATATYPE='O
         print 'Error 1. Exit'
         sys.exit(1)
 
-    print lstInFile
+    # print lstInFile
 
     sys.exit(1)
 
@@ -525,18 +580,26 @@ if __name__=="__main__":
     except:
         exitMessage('Unexpected error while processing text file {0}. Exit(11).'.format(modeListFile), 11)
 
-    # regrid for projections, only r1i1p1
     validYearList=range(startYear, endYear)
     if len(validYearList)==0:
         exitMessage('No date to process, startYear={0}, endYear{1}. Exit(20).'.format(startYear, endYear),20)
 
     processedFiles=[]
     for thisModel in modelList:
-        stringBefore='stats_{0}_{1}.nc'.format(thisModel, 'rcp85')
-        stringAfter=''
-        thisModelFiles = do_stats(variable, indir, tmpdir, stringBefore, stringAfter, validYearList, 'Omon',thisModel,'rcp85', '.*','.*')
-        processedFiles.append(thisModelFiles)
-        print processedFiles
+
+        pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
+        lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
+
+        #regridedFiles = do_regrid(variable, indir, lstInFile, tmpdir, 'regrid_')
+
+#        pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
+#        lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
+
+        thisModelFiles = do_stats(variable, indir, lstInFile, tmpdir, 'stats_', '{0}_{1}'.format(thisModel, 'rcp85', 1, 300) )
+
+
+#        processedFiles.append(thisModelFiles)
+#        print processedFiles
 
     print '____________'
     print processedFiles
