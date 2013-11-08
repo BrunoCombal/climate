@@ -286,9 +286,6 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
 #___________________________
 if __name__=="__main__":
 
-    print 'To make this script properly work, ensure to source cdat setup file first (source /usr/local/uvcdat/VERSION/bin/setup_runtime.sh)'
-    print
-
     variable = None
     indir = None
     tmpdir = None
