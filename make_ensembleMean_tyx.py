@@ -51,6 +51,9 @@ def flatten(sequence, to_expand=list_or_tuple):
 # ____________________________
 # dict{date:[filename]}
 def agregateDict(refDict, newDict):
+
+    if refDict is None and newDict is None:
+        return None    
     # get list of all keys
     if refDict is None:
         return newDict
@@ -80,7 +83,6 @@ def dateTime2Year(datetime):
 
 def makeOutfileName(infile, outdir, prefix, year):
     return('{0}/{1}_{2}_{3}.nc'.format(outdir,prefix,os.path.basename(infile)[:-17], year))
-
 # ____________________________
 def makeGrid():
     xstart=0
@@ -152,7 +154,6 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
         mini[wminReplace] = data[wminReplace]
 
     return [accum, N, mini, maxi]
-
 # ___________________________
 def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 
@@ -211,13 +212,15 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
 
     # open all files
     listFID=[]
-    for ifile in lstInFile: listFID.append(cdms2.open('{0}/{1}'.format(indir,ifile), 'r'))
+    print 'Averagin with files'
+    for ifile in lstInFile: 
+        listFID.append(cdms2.open('{0}/{1}'.format(indir,ifile), 'r'))
+        print ifile
     
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
         print 'Processing year {0}'.format(iyear)
-        for imonth in range(1,13):
-            print '.',
+        for imonth in range(1,3):
             accumVar=None
             accumN=None
             mini=None
@@ -246,13 +249,12 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
                             [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
                                                                            numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
                                                                            minVar, maxVar, nodata )
-                        
+
             # compute average
             wtdivide = (accumN < nodata) * (accumN > 0)
 
             if wtdivide.any():
                 accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
-            accumVar = accumVar/accumN
 
             # compute std
 
@@ -381,12 +383,11 @@ if __name__=="__main__":
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
         
-
     print 'Averaging models, for each date:'
     for idate in processedFiles:
         print 'Averaging date ',idate
-        print 'Averaging files ',processedFiles[idate]
         listFiles = [ x for x in flatten(processedFiles[idate]) ]
+        print 'averaging files ', listFiles
         print do_stats('mean_{0}'.format(variable), tmpdir, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, 'rcp85') )
 
 
