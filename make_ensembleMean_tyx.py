@@ -54,9 +54,12 @@ def agregateDict(refDict, newDict):
     # get list of all keys
     if refDict is None:
         return newDict
+    if len(refDict)==0:
+        return newDict
     if newDict is None:
         return refDict
-
+    if len(newDict)==0:
+        return refDict
     
     keyList = sorted(set(refDict.keys() + newDict.keys()))
 
@@ -155,9 +158,14 @@ def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 
     createdFiles=[]
     nodata=1.e20
+    
+    if lstInFile is None:
+        print 'No file to process. Return'
+        return None
 
     if len(lstInFile)==0:
-        exitMessage('Found no file to process, consider revising search pattern. Exit 6.',6)
+        print 'Found no file to process, consider revising search pattern. Return.'
+        return None
 
     (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
 
@@ -192,7 +200,12 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
     nodata=1.e20
 
     if lstInFile is None:
-        exitMessage('Found no file to process, consider revising search pattern. Exit 6.',6)
+        print 'No file to process. Return.'
+        return
+
+    if len(lstInFile)==0:
+        print 'Found no file to process, consider revising search pattern.'
+        return
 
     print lstInFile
 
@@ -336,7 +349,7 @@ if __name__=="__main__":
     cdms2.setNetcdfShuffleFlag(1)
     cdms2.setNetcdfDeflateFlag(1)
     cdms2.setNetcdfDeflateLevelFlag(3)
-    
+
     # models list
     modelList=[]
     try:
