@@ -132,12 +132,13 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
         mini = data.copy()
         maxi = data.copy()
 
-    wtadd = (data >= minVar ) * (data <= maxVar) * (accum < nodata) # add where not nodata
-    wtreplace = (data >= minVar) * (data <= maxVar) * (accum >= nodata) # replace if no data
-    wmax = (data >= maxi) * (data<nodata) * (data >= minVar) * (data <= maxVar)
+    wtadd = (data >= minVar ) * (data < maxVar) * (accum < nodata) # add where not nodata
+    wtreplace = (data >= minVar) * (data < maxVar) * (accum >= nodata) # replace if no data
+    wmax = (data >= maxi) * (data < nodata) * (data >= minVar) * (data < maxVar)
     wmaxReplace = (mini >= nodata) * (data < nodata) * (data >= minVar)
-    wmin = (data <= mini) * (data >= minVar) * ( data <= maxVar) * ( maxi < nodata )
-    wminReplace = (mini >= nodata) * (data<nodata) * (data >= minVar)
+    wmin = (data <= mini) * (data >= minVar) * ( data < maxVar) * ( maxi < nodata )
+    wminReplace = (mini >= nodata) * (data < nodata) * (data >= minVar)
+
     if wtadd.any():
         accum[wtadd] = accum[wtadd] + data[wtadd]
         N[wtadd] = N[wtadd] + 1 #numpy.ones(dim)
