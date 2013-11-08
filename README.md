@@ -14,3 +14,5 @@ $: ./make_ensembleMean_TOS.py
 see wiki page:
 https://github.com/BrunoCombal/climate/wiki
 
+current release:
+https://github.com/BrunoCombal/climate/releases/tag/v1.0
