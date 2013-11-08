@@ -221,7 +221,7 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
         print 'Processing year {0}'.format(iyear)
-        for imonth in range(1,3):
+        for imonth in range(1,13):
             accumVar=None
             accumN=None
             mini=None
