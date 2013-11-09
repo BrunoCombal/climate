@@ -16,7 +16,7 @@ import random
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT\n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR\n'
+    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT\n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n'
     textUsage=textUsage+'\tVARIABLE: a netcdf CMIP5 variable name, such as tos, zos, so, thetao;\n'
     textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
     textUsage=textUsage+'\tPATHOUT: output directory, created if does not exist;\n'
@@ -24,7 +24,8 @@ def usage():
     textUsage=textUsage+'\tMAXVAL: any value above maxVar is considered as nodata;\n'
     textUsage=textUsage+'\tMODELLIST: a text file with a model name per name, the model name is used to select the files to process;\n'
     textUsage=textUsage+'\tSTARTYEAR: first year in the series of dates to process;\n'
-    textUsage=textUsage+'\tENDYEAR: last year in the series of date to process'
+    textUsage=textUsage+'\tENDYEAR: last year in the series of date to process;\n'
+    textUsage=textUsage+'\tMONTHLIST: a comma separated list of month, such as "1,2,3" or "1,6,12". Values range is [1, 12].\n'
     textUsage=textUsage+'In first place, the programme will average model output per model (if a model output has several rXiYpZ ensemble, they are averaged. Then, the averages are averaged to produce the ensemble mean.\n'
     textUsage=textUsage+'Averages are computed for each month of the year.\n'
     return textUsage
@@ -34,6 +35,29 @@ def exitMessage(msg, exitCode='1'):
     print
     print usage()
     sys.exit(exitCode)
+# ___________________________
+def boolConvert(code):
+
+    if code=='0':
+        return False
+    if code.lower()=='false':
+        return False
+    if code.lower()=='no':
+        return False
+    if code=='1':
+        return True
+    if code.lower()=='true':
+        return True
+    if code.lower()=='yes':
+        return True
+# ____________________________
+def decodeMonthList(parameter):
+
+    listMonth = [int(x) for x in parameter.strip().split(',')]
+    for ii in listMonth:
+        if ii<1 or ii>12:
+            exitMessage('month defined in the month list must be in [1, 12]. Exit(100).',100)
+    return listMonth
 # ____________________________
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
@@ -74,15 +98,6 @@ def agregateDict(refDict, newDict):
         result[ikey] = val
 
     return result
-# ____________________________
-def dateTime2Year(datetime):
-    result=[]
-    for ii in datetime:
-        result.append(ii.year)
-    return(numpy.array(result), sorted(set(result)))
-
-def makeOutfileName(infile, outdir, prefix, year):
-    return('{0}/{1}_{2}_{3}.nc'.format(outdir,prefix,os.path.basename(infile)[:-17], year))
 # ____________________________
 def makeGrid():
     xstart=0
@@ -156,7 +171,7 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
     return [accum, N, mini, maxi]
 # ___________________________
-def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
+def do_regrid(variable, lstInFile, outdir, stringBefore, seamless=True):
 
     createdFiles=[]
     nodata=1.e20
@@ -179,10 +194,12 @@ def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 
         mask = numpy.array(data) < nodata
         regrided = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
+
+
         regrided.id=variable
 
         outfilename = '{0}/{1}{2}'.format(outdir, stringBefore, os.path.basename(fileName))
-        createdFiles.append(os.path.basename(outfilename) )
+        createdFiles.append(outfilename )
         if os.path.exists(outfilename): os.remove(outfilename)
         outfile = cdms2.open(outfilename, 'w')
         outfile.write(regrided)
@@ -193,7 +210,7 @@ def do_regrid(variable, indir, lstInFile, outdir, stringBefore):
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
 # if a new grid is passed: regrid
-def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20):
+def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20):
     
     if validYearList is None:
         exitMessage('List of years to process is undefined, edit code. Exit 5.',5)
@@ -215,13 +232,13 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
     listFID=[]
     print 'Averagin with files'
     for ifile in lstInFile: 
-        listFID.append(cdms2.open('{0}/{1}'.format(indir,ifile), 'r'))
+        listFID.append(cdms2.open(ifile, 'r'))
         print ifile
     
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
         print 'Processing year {0}'.format(iyear)
-        for imonth in range(1,13):
+        for imonth in monthList:
             accumVar=None
             accumN=None
             mini=None
@@ -234,6 +251,7 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
                 if ifile[variable].getTime() is None:
                     if refGrid is None:
                         refGrid = ifile[variable].getGrid()
+                        # axis=ifile[variable].getAxisList(omit='time')
                         dims = numpy.squeeze(ifile[variable]).shape
                         units= ifile[variable].units
                     [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
@@ -259,15 +277,17 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
 
             # compute std
 
-            # save variables
-#            newGrid = cdms2.createGenericGrid(refGrid.getLatitude(), refGrid.getLongitude(), latBounds=refGrid.getLatitude().getBounds(), lonBounds=refGrid.getLongitude().getBounds())
+            # create and save variables
             meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
-
             meanVar.setGrid(refGrid)
 
             counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
+            counter.setGrid(refGrid)
             miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, attributes=dict(long_name='minimum', units=units) )
+            miniVar.setGrid(refGrid)
             maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, attributes=dict(long_name='maximum', units=units) )
+            maxiVar.setGrid(refGrid)
+
             outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
             if os.path.exists(outfilename): os.remove(outfilename)
             outfile = cdms2.open(outfilename, 'w')
@@ -277,7 +297,7 @@ def do_stats(variable, indir, lstInFile, outdir, stringBefore, outnameBase, minV
             outfile.write(maxiVar)
             outfile.close()
 
-            createdFiles['{0}{1:02}'.format(iyear,imonth)] = os.path.basename(outfilename)
+            createdFiles['{0}{1:02}'.format(iyear,imonth)] = outfilename
 
     # close input files
     for ii in listFID: ii.close()
@@ -293,6 +313,10 @@ if __name__=="__main__":
     modelListFile=None
     startYear=None
     endYear=None
+    monthList=range(1,13)
+    regridFirst = True
+    deleteRegrid = True
+    modelStat = True
 
     ii = 1
     while ii < len(sys.argv):
@@ -325,6 +349,15 @@ if __name__=="__main__":
         elif arg=='-endyear':
             ii = ii + 1
             endYear = int(sys.argv[ii]) + 1
+        elif arg=='-monthlist':
+            ii = ii + 1
+            monthList=decodeMonthList(sys.argv[ii])
+        elif arg=='-regridfirst':
+            ii=ii+1
+            regridFirst=boolConvert(sys.argv[ii])
+        elif arg=='-deleteregrid':
+            ii = ii + 1
+            deleteRegrid = boolConvert(sys.argv[ii])
         ii = ii + 1
 
     if variable is None:
@@ -373,11 +406,15 @@ if __name__=="__main__":
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
-        regridedFiles = do_regrid(variable, indir, lstInFile, tmpdir, 'regrid_')
+        if regridFirst:
+            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_')
+        else:
+            regridedFiles = lstInFile
 
-        thisModelFiles = do_stats(variable, tmpdir, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, 'rcp85') )
+        thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, 'rcp85') )
 
-        for ii in regridedFiles: os.remove('{0}/{1}'.format(tmpdir, ii))
+        if deleteRegrid:
+            for ii in regridedFiles: os.remove(ii)
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
         
@@ -386,11 +423,7 @@ if __name__=="__main__":
         print 'Averaging date ',idate
         listFiles = [ x for x in flatten(processedFiles[idate]) ]
         print 'averaging files ', listFiles
-        print do_stats('mean_{0}'.format(variable), tmpdir, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, 'rcp85') )
-
-
-
-
+        print do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, 'rcp85') )
 
 
 
