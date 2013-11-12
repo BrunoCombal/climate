@@ -13,6 +13,8 @@ from os import path
 import re
 import string
 import random
+import gc
+import logging
 
 # ____________________________
 def usage():
@@ -34,6 +36,7 @@ def usage():
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
+    logging.critical(msg)
     print msg
     print
     print usage()
@@ -64,17 +67,7 @@ def decodeMonthList(parameter):
 # ____________________________
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
-# ___________________________
-#def list_or_tuple(x):
-#    return isinstance(x, (list, tuple))
-# ____________________________
-#def flatten(sequence, to_expand=list_or_tuple):
-#    for item in sequence:
-#        if to_expand(item):
-#            for subitem in flatten(item, to_expand):
-#                yield subitem
-#        else:
-#            yield item
+#_____________________________
 def flatten(foo):
     for x in foo:
         if hasattr(x, '__iter__'):
@@ -82,7 +75,6 @@ def flatten(foo):
                 yield y
         else:
             yield x
-
 # ____________________________
 # dict{date:[filename]}
 def agregateDict(refDict, newDict):
@@ -104,9 +96,9 @@ def agregateDict(refDict, newDict):
     result={}
     for ikey in keyList:
         val = []
-        if ikey in refDict.keys(): val.append(refDict[ikey])
-        if ikey in newDict.keys(): val.append(newDict[ikey])
-        result[ikey] = val
+        if ikey in refDict.keys(): val.append( refDict[ikey] )
+        if ikey in newDict.keys(): val.append( newDict[ikey] )
+        result[ikey] = [ x for x in flatten(val) ]
 
     return result
 # ____________________________
@@ -179,33 +171,47 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
         maxi[wmaxReplace] = data[wmaxReplace]
     if wminReplace.any():
         mini[wminReplace] = data[wminReplace]
-
+        
+    del wtadd, wtreplace, wmax, wmaxReplace, wmin, wminReplace
+    gc.collect()
     return [accum, N, mini, maxi]
 # ___________________________
-def do_regrid(variable, lstInFile, outdir, stringBefore, seamless=True):
+def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, seamless=True):
 
     createdFiles=[]
     nodata=1.e20
     
     if lstInFile is None:
-        print 'No file to process. Return'
+        logging.info( 'No file to process. Return' )
         return None
 
     if len(lstInFile)==0:
-        print 'Found no file to process, consider revising search pattern. Return.'
+        logging.info('Found no file to process, consider revising search pattern. Return.')
         return None
 
     (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
 
     for fileName in lstInFile:
         print 'processing file ', fileName
+        logging.info('Processing file: {0}'.format(fileName))
 
         thisFile = cdms2.open(fileName)
-        data = cdms2.createVariable(thisFile[variable])
+        # to reduce output file size and memory use, collect start/end times according to internal file encoding
+        startTime = [t for t in thisFile[variable].getTime().asComponentTime() if (t.year==startYear)]
+        endTime = [t for t in thisFile[variable].getTime().asComponentTime() if (t.year==endYear)]
+        if len(startTime)==0 and len(endTime)==0: # this file does not contain useful data
+            continue
+        if len(startTime)==0: # the first date is not in this file, process from the start
+            startTime = thisFile[variable].getTime().asComponentTime()
+        if len(endTime)==0: # the last date is not in this file, process up to the end
+            endTime = thisFile[variable].getTime().asComponentTime()
+
+        logging.info('start time = {0}-{1}'.format(startTime[0].year, startTime[0].month) )
+        logging.info('end time = {0}-{1}'.format(endTime[-1].year, endTime[-1].month))
+        data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
 
         mask = numpy.array(data) < nodata
         regrided = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
-
 
         regrided.id=variable
 
@@ -217,6 +223,8 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, seamless=True):
         outfile.close()
         thisFile.close()
 
+    del mask, regrided
+    gc.collect()
     return createdFiles
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
@@ -230,25 +238,23 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     nodata=1.e20
 
     if lstInFile is None:
-        print 'No file to process. Return.'
+        logging.info('No file to process. Return.')
         return
 
     if len(lstInFile)==0:
-        print 'Found no file to process, consider revising search pattern.'
+        logging.info('Found no file to process, consider revising search pattern.')
         return
-
-    print lstInFile
 
     # open all files
     listFID=[]
-    print '>> Averaging with files'
+    logging.debug('>> Averaging with files')
     for ifile in lstInFile: 
         listFID.append(cdms2.open(ifile, 'r'))
-        print ifile
+        logging.debug(ifile)
     
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
-        print 'Processing year {0}'.format(iyear)
+        logging.info('Processing year {0}'.format(iyear))
         for imonth in monthList:
             accumVar=None
             accumN=None
@@ -301,7 +307,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
             if os.path.exists(outfilename): os.remove(outfilename)
-            print '>>>> creating outfilename ',outfilename
+            logging.debug('>> creating outfilename {0}'.format(outfilename))
             outfile = cdms2.open(outfilename, 'w')
             outfile.write(meanVar)
             outfile.write(counter)
@@ -314,6 +320,8 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     # close input files
     for ii in listFID: ii.close()
 
+    del wtdivide, accumVar, mini, maxi, accumN
+    gc.collect()
     return(createdFiles)
 #___________________________
 if __name__=="__main__":
@@ -330,6 +338,7 @@ if __name__=="__main__":
     deleteRegrid = False
     modelStat = True
     rcp=None
+    logFile='make_ensembleMean_tyx.log'
 
     ii = 1
     while ii < len(sys.argv):
@@ -374,7 +383,12 @@ if __name__=="__main__":
         elif arg=='-rcp':
             ii=ii+1
             rcp=sys.argv[ii]
+        elif arg=='-log':
+            ii = ii + 1
+            logFile = sys.argv[ii]
         ii = ii + 1
+
+    logging.basicConfig(filename=logFile, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     if variable is None:
         exitMessage('Missing variable name, use option -v. Exit(1).', 1)
@@ -425,7 +439,7 @@ if __name__=="__main__":
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
         if regridFirst:
-            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_')
+            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear)
         else:
             regridedFiles = lstInFile
 
@@ -434,16 +448,16 @@ if __name__=="__main__":
             for ii in regridedFiles: os.remove(ii)
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
-        print 'processedFiles >>>>',processedFiles
+        logging.info('Processed files: {0}'.format(processedFiles))
+        gc.collect()
 
-    print processedFiles
-
-    print 'Averaging models, for each date:'
+    logging.info( 'Averaging models, for each date:')
     for idate in processedFiles: # iteration over keys
-        print 'Averaging date ',idate
+        logging.info('Averaging date {0}'.format(idate))
         listFiles = [x for x in flatten(processedFiles[idate])]
-        print 'averaging files ', listFiles
-        print do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) )
+        logging.info('averaging files '.format(listFiles))
+        returnedList = do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) )
+        gc.collect()
 
 
 
