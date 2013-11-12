@@ -16,7 +16,7 @@ import random
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT\n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n'
+    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT\n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n\t[-regridFirst REGRIDBOOL] [-deleteGrid DELETEBOOL] -rcp RCP\n'
     textUsage=textUsage+'\tVARIABLE: a netcdf CMIP5 variable name, such as tos, zos, so, thetao;\n'
     textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
     textUsage=textUsage+'\tPATHOUT: output directory, created if does not exist;\n'
@@ -26,7 +26,10 @@ def usage():
     textUsage=textUsage+'\tSTARTYEAR: first year in the series of dates to process;\n'
     textUsage=textUsage+'\tENDYEAR: last year in the series of date to process;\n'
     textUsage=textUsage+'\tMONTHLIST: a comma separated list of month, such as "1,2,3" or "1,6,12". Values range is [1, 12].\n'
-    textUsage=textUsage+'In first place, the programme will average model output per model (if a model output has several rXiYpZ ensemble, they are averaged. Then, the averages are averaged to produce the ensemble mean.\n'
+    textUsage=textUsage+'In first place, the programme will average model output per model (if a model output has several rXiYpZ ensemble, they are averaged. Then, the averages are averaged to produce the ensemble mean;\n'
+    textUsage=textUsage+'\tREGRIDBOOL\n'
+    textUsage=textUsage+'\tDELETEBOOL\n'
+    textUsage=textUsage+'\tRCP a string corresponding to the RCP string to match in filenames.\n'
     textUsage=textUsage+'Averages are computed for each month of the year.\n'
     return textUsage
 # ____________________________
@@ -62,16 +65,18 @@ def decodeMonthList(parameter):
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 # ___________________________
-def list_or_tuple(x):
-    return isinstance(x, (list, tuple))
+#def list_or_tuple(x):
+#    return isinstance(x, (list, tuple))
 # ____________________________
-def flatten(sequence, to_expand=list_or_tuple):
-    for item in sequence:
-        if to_expand(item):
-            for subitem in flatten(item, to_expand):
-                yield subitem
-        else:
-            yield item
+#def flatten(sequence, to_expand=list_or_tuple):
+#    for item in sequence:
+#        if to_expand(item):
+#            for subitem in flatten(item, to_expand):
+#                yield subitem
+#        else:
+#            yield item
+def flatten(listData):
+    return [item for sublist in listData for item in sublist]
 # ____________________________
 # dict{date:[filename]}
 def agregateDict(refDict, newDict):
@@ -230,7 +235,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
     # open all files
     listFID=[]
-    print 'Averagin with files'
+    print '>> Averaging with files'
     for ifile in lstInFile: 
         listFID.append(cdms2.open(ifile, 'r'))
         print ifile
@@ -265,9 +270,9 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                             dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
                             units= ifile[variable].units
 
-                            [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
-                                                                           numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
-                                                                           minVar, maxVar, nodata )
+                        [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
+                                                                       numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
+                                                                       minVar, maxVar, nodata )
 
             # compute average
             wtdivide = (accumN < nodata) * (accumN > 0)
@@ -290,6 +295,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
             if os.path.exists(outfilename): os.remove(outfilename)
+            print '>>>> creating outfilename ',outfilename
             outfile = cdms2.open(outfilename, 'w')
             outfile.write(meanVar)
             outfile.write(counter)
@@ -315,8 +321,9 @@ if __name__=="__main__":
     endYear=None
     monthList=range(1,13)
     regridFirst = True
-    deleteRegrid = True
+    deleteRegrid = False
     modelStat = True
+    rcp=None
 
     ii = 1
     while ii < len(sys.argv):
@@ -358,6 +365,9 @@ if __name__=="__main__":
         elif arg=='-deleteregrid':
             ii = ii + 1
             deleteRegrid = boolConvert(sys.argv[ii])
+        elif arg=='-rcp':
+            ii=ii+1
+            rcp=sys.argv[ii]
         ii = ii + 1
 
     if variable is None:
@@ -372,6 +382,8 @@ if __name__=="__main__":
         exitMessage('Please define a starting year, use option -startyear. Exit(13).',13)
     if endYear is None:
         exitMessage('Please define an ending year, use option -endyear. Exit(14).',14)
+    if rcp is None:
+        exitMessage('Please define an rcp, use option -rcp. Exit(15).',15)
 
     if tmpdir is None:
         tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
@@ -401,9 +413,9 @@ if __name__=="__main__":
         exitMessage('No date to process, startYear={0}, endYear{1}. Exit(20).'.format(startYear, endYear),20)
 
     processedFiles=None
-    for thisModel in modelList:
 
-        pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, 'rcp85', 'r.*i.*p.*', '.*') )
+    for thisModel in modelList:
+        pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') )
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
         if regridFirst:
@@ -411,19 +423,21 @@ if __name__=="__main__":
         else:
             regridedFiles = lstInFile
 
-        thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, 'rcp85') )
-
+        thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, rcp) )
         if deleteRegrid:
             for ii in regridedFiles: os.remove(ii)
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
-        
+        print 'processedFiles >>>>',processedFiles
+
+    print processedFiles
+
     print 'Averaging models, for each date:'
     for idate in processedFiles:
         print 'Averaging date ',idate
-        listFiles = [ x for x in flatten(processedFiles[idate]) ]
+        listFiles = flatten(processedFiles[idate])
         print 'averaging files ', listFiles
-        print do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, 'rcp85') )
+        print do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) )
 
 
 
