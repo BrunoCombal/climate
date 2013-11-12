@@ -192,8 +192,8 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, sea
     (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
 
     for fileName in lstInFile:
-        print 'processing file ', fileName
-        logging.info('Processing file: {0}'.format(fileName))
+        print 'Regriding file ', fileName
+        logging.info('Regriding file: {0}'.format(fileName))
 
         thisFile = cdms2.open(fileName)
         # to reduce output file size and memory use, collect start/end times according to internal file encoding
@@ -288,6 +288,8 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             # compute average
             wtdivide = (accumN < nodata) * (accumN > 0)
+            logging.debug('accumN.shape {0}'.format(accumN.shape) )
+            logging.debug('wtdivide.shape {0}'.format(wtdivide.shape) )
 
             if wtdivide.any():
                 accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
@@ -307,7 +309,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
             if os.path.exists(outfilename): os.remove(outfilename)
-            logging.debug('>> creating outfilename {0}'.format(outfilename))
+            logging.debug('Saving stats to file {0}'.format(outfilename))
             outfile = cdms2.open(outfilename, 'w')
             outfile.write(meanVar)
             outfile.write(counter)
@@ -435,6 +437,7 @@ if __name__=="__main__":
     processedFiles=None
 
     for thisModel in modelList:
+        logging.info('Model {0}'.format(thisModel))
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') )
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
@@ -448,10 +451,9 @@ if __name__=="__main__":
             for ii in regridedFiles: os.remove(ii)
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
-        logging.info('Processed files: {0}'.format(processedFiles))
         gc.collect()
 
-    logging.info( 'Averaging models, for each date:')
+    logging.info( 'Averaging models averages, for each date:')
     for idate in processedFiles: # iteration over keys
         logging.info('Averaging date {0}'.format(idate))
         listFiles = [x for x in flatten(processedFiles[idate])]
