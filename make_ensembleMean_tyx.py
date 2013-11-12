@@ -75,8 +75,14 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
 #                yield subitem
 #        else:
 #            yield item
-def flatten(listData):
-    return [item for sublist in listData for item in sublist]
+def flatten(foo):
+    for x in foo:
+        if hasattr(x, '__iter__'):
+            for y in flatten(x):
+                yield y
+        else:
+            yield x
+
 # ____________________________
 # dict{date:[filename]}
 def agregateDict(refDict, newDict):
@@ -433,9 +439,9 @@ if __name__=="__main__":
     print processedFiles
 
     print 'Averaging models, for each date:'
-    for idate in processedFiles:
+    for idate in processedFiles: # iteration over keys
         print 'Averaging date ',idate
-        listFiles = flatten(processedFiles[idate])
+        listFiles = [x for x in flatten(processedFiles[idate])]
         print 'averaging files ', listFiles
         print do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) )
 
