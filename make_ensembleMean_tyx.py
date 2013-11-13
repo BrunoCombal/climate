@@ -37,7 +37,7 @@ def usage():
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
-    logging.critical(msg)
+    thisLogger.critical(msg)
     print msg
     print
     print usage()
@@ -105,6 +105,14 @@ def agregateDict(refDict, newDict):
     gc.collect()
     return result
 # ____________________________
+def make_levels():
+    levelAxis = cdms2.createAxis([3.3, 10, 20, 30, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500])
+    levelAxis.id='levels'
+    levelAxis.designateLevel(True)
+    levelAxis.units='meters'
+
+    return levelAxis
+# ____________________________
 def makeGrid():
     xstart=0
     xend=360
@@ -143,6 +151,25 @@ def makeGrid():
 
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
 # ____________________________
+# auto mask based on the principle that the mask does not change in-between dates
+def autoMask(var):
+
+    refshape = var.shape
+    if len(refshape)==3:
+        tmp = numpy.reshape(var, (refshape[0], refshape[1] * refshape[2]) )
+    elif len(refshape)==4:
+        tmp = numpy.reshape(var, (refshape[0], refshape[1] * refshape[2] * refshape[3]) )
+    wtnodata = (tmp.max(axis=0) - tmp.min(axis=0)) < 0.001
+
+    if wtnodata.any():
+        for ii in range(refshape[0]):
+            tmp[ii, wtnodata] = nodata
+        var[:] = numpy.reshape(tmp, refshape)
+    
+    del tmp, wtnodata
+    gc.collect()
+    return var
+# ____________________________
 def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
     dim = numpy.squeeze(data[:]).shape
@@ -179,23 +206,23 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
     gc.collect()
     return [accum, N, mini, maxi]
 # ___________________________
-def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, seamless=True):
+def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, topLevel=0, bottomLevel=1000):
 
     createdFiles=[]
     nodata=1.e20
     
     if lstInFile is None:
-        logging.info( 'No file to process. Return' )
+        thisLogger.info( 'No file to process. Return' )
         return None
 
     if len(lstInFile)==0:
-        logging.info('Found no file to process, consider revising search pattern. Return.')
+        thisLogger.info('Found no file to process, consider revising search pattern. Return.')
         return None
 
     (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
 
     for fileName in lstInFile:
-        logging.info('Regriding file: {0}'.format(fileName))
+        thisLogger.info('Regriding file: {0}'.format(fileName))
 
         thisFile = cdms2.open(fileName)
         # to reduce output file size and memory use, collect start/end times according to internal file encoding
@@ -208,12 +235,37 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, sea
         if len(endTime)==0: # the last date is not in this file, process up to the end
             endTime = thisFile[variable].getTime().asComponentTime()
 
-        logging.info('start time = {0}-{1:02}'.format(startTime[0].year, startTime[0].month) )
-        logging.info('end time = {0}-{1:02}'.format(endTime[-1].year, endTime[-1].month))
-        data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
+
+        thisLogger.info('start time = {0}-{1:02}'.format(startTime[0].year, startTime[0].month) )
+        thisLogger.info('end time = {0}-{1:02}'.format(endTime[-1].year, endTime[-1].month))
+
+        if thisFile[variable].getLevel() is None:
+            data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
+            if thisFile[variable].getMissing() is None: # some files do not have a mask defined (eg. EC-Earth with 273.15 in lands instead of 1.e20
+                tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
+                data = autoMask(tmp)
+                del tmp
+                gc.collect()
+            else:
+                data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
+        else:
+            verticalGrid = make_levels()
+            topLevel = levelAxis.min()
+            bottomLevel = levelAxis.max()
+            if thisFile[variable].getMissing() is None:
+                tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
+                data = autoMask(tmp)
+                del tmp
+                gc.collect()
+            else:
+                data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
 
         mask = numpy.array(data) < nodata
-        regrided = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
+        if thisFile[variable].getLevel() is None:
+            regrided = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
+        else:
+            tmp = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
+            regrided = tmp.pressureRegrid( verticalGrid, method='linear')
 
         regrided.id=variable
 
@@ -241,23 +293,23 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     nodata=1.e20
 
     if lstInFile is None:
-        logging.info('No file to process. Return.')
+        thisLogger.info('No file to process. Return.')
         return
 
     if len(lstInFile)==0:
-        logging.info('Found no file to process, consider revising search pattern.')
+        thisLogger.info('Found no file to process, consider revising search pattern.')
         return
 
     # open all files
     listFID=[]
-    logging.debug('Averaging with files')
+    thisLogger.debug('Averaging with files')
     for ifile in lstInFile: 
         listFID.append(cdms2.open(ifile, 'r'))
-        logging.debug(ifile)
+        thisLogger.debug(ifile)
     
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
-        logging.info('Processing year {0}'.format(iyear))
+        thisLogger.info('Processing year {0}'.format(iyear))
         for imonth in monthList:
             accumVar=None
             accumN=None
@@ -291,8 +343,8 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             # compute average
             wtdivide = (accumN < nodata) * (accumN > 0)
-#            logging.debug('accumN.shape {0}'.format(accumN.shape) )
-#            logging.debug('wtdivide.shape {0}'.format(wtdivide.shape) )
+#            thisLogger.debug('accumN.shape {0}'.format(accumN.shape) )
+#            thisLogger.debug('wtdivide.shape {0}'.format(wtdivide.shape) )
 
             if wtdivide.any():
                 accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
@@ -312,7 +364,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
             outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
             if os.path.exists(outfilename): os.remove(outfilename)
-            logging.debug('Saving stats to file {0}'.format(outfilename))
+            thisLogger.debug('Saving stats to file {0}'.format(outfilename))
             outfile = cdms2.open(outfilename, 'w')
             outfile.write(meanVar)
             outfile.write(counter)
@@ -346,6 +398,8 @@ if __name__=="__main__":
     logFile='make_ensembleMean_tyx.log'
     minVar=-1.e20
     maxVar=1.e20
+    topLevel=0
+    bottomLevel=300
 
     ii = 1
     while ii < len(sys.argv):
@@ -395,7 +449,11 @@ if __name__=="__main__":
             logFile = sys.argv[ii]
         ii = ii + 1
 
-    logging.basicConfig(filename=logFile, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    thisLogger = logging.getLogger('MyLogger')
+    thisLogger.setLevel(logging.DEBUG)
+    handler = logging.handlers.RotatingFileHandler(logFile, maxBytes=1024*500, backupCount=5)
+    thisLogger.addHandler(handler)
 
     if variable is None:
         exitMessage('Missing variable name, use option -v. Exit(1).', 1)
@@ -442,12 +500,12 @@ if __name__=="__main__":
     processedFiles=None
 
     for thisModel in modelList:
-        logging.info('Model {0}'.format(thisModel))
+        thisLogger.info('Model {0}'.format(thisModel))
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') )
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
         if regridFirst:
-            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear)
+            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear, topLevel, bottomLevel)
         else:
             regridedFiles = lstInFile
 
@@ -461,11 +519,11 @@ if __name__=="__main__":
 
     print processedFiles
     print processedFiles.keys()
-    logging.info( '>> Averaging models averages, for each date')
+    thisLogger.info( '>> Averaging models averages, for each date')
     for idate in processedFiles: # iteration over keys
-        logging.info('>> Averaging date {0}'.format(idate))
+        thisLogger.info('>> Averaging date {0}'.format(idate))
         listFiles = [x for x in flatten(processedFiles[idate])]
-        logging.info('>> averaging files '.format(listFiles))
+        thisLogger.info('>> averaging files '.format(listFiles))
         returnedList = do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
         gc.collect()
 
