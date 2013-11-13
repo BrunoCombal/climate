@@ -145,6 +145,7 @@ def makeGrid():
 
     lonAxis = cdms2.createAxis(lon, lon_bnds)
     lonAxis.designateLongitude(True, 360.0)
+    lonAxis.designateCircular(360)
     lonAxis.units='degrees_east'
     lonAxis.id='longitude'
     lonAxis.long_name='Longitude'
@@ -152,7 +153,7 @@ def makeGrid():
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
 # ____________________________
 # auto mask based on the principle that the mask does not change in-between dates
-def autoMask(var):
+def autoMask(var, nodata):
 
     refshape = var.shape
     if len(refshape)==3:
@@ -243,7 +244,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
             data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
             if thisFile[variable].getMissing() is None: # some files do not have a mask defined (eg. EC-Earth with 273.15 in lands instead of 1.e20
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
-                data = autoMask(tmp)
+                data = autoMask(tmp, nodata)
                 del tmp
                 gc.collect()
             else:
@@ -254,7 +255,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
             bottomLevel = levelAxis.max()
             if thisFile[variable].getMissing() is None:
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
-                data = autoMask(tmp)
+                data = autoMask(tmp, nodata)
                 del tmp
                 gc.collect()
             else:
@@ -517,15 +518,16 @@ if __name__=="__main__":
         gc.collect()
 
 
-    print processedFiles
-    print processedFiles.keys()
     thisLogger.info( '>> Averaging models averages, for each date')
     for idate in processedFiles: # iteration over keys
+        thisYear = idate[0:4]
+        thisMonth= idate[4:6]
         thisLogger.info('>> Averaging date {0}'.format(idate))
         listFiles = [x for x in flatten(processedFiles[idate])]
         thisLogger.info('>> averaging files '.format(listFiles))
-        returnedList = do_stats('mean_{0}'.format(variable), validYearList, monthList, listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
+        returnedList = do_stats('mean_{0}'.format(variable), (thisYear), (thisMonth), listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
+
         gc.collect()
 
 
-
+# end of file
