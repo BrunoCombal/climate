@@ -14,16 +14,28 @@
 # 2.a/ DHM: compare sum(past 4 months to now) to max(actual climato): 2 degrees above-> level 2
 
 import cdms2
-from cdms2 import MV
+#from cdms2 import MV
 import numpy
-import glob
+#import glob
 import sys
 import os
-from os import path
-import re
+#from os import path
+#import re
 from scipy import interpolate
-import shutil
+# import shutil
+import logging
+import logging.handlers
 
+# ____________________________
+def usage():
+    textUsage='SYNOPSIS: to be completed'
+# ____________________________
+def exitMessage(msg, exitCode='1'):
+    thisLogger.critical(msg)
+    print msg
+    print
+    print usage()
+    sys.exit(exitCode)
 # _________________________________
 # return the month count from year 0
 def yyyymm2count(year, month):
@@ -280,27 +292,57 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 # _______________
 if __name__=="__main__":
 
-    inhist='/data/cmip5/rcp/rcp8.5/toshist_ensemble/'
-    modelClimatoRootName='climato_tos_1971_2000_' # climato 1980-2000 based on model output ensemble mean, make_tos_climato.sh
-    #indir='/data/cmip5/rcp/rcp8.5/tos_ensemble/'
-    indir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
+    inhist=None #'/data/cmip5/rcp/rcp8.5/toshist_ensemble/'
+    modelClimatoRootName=None #'climato_tos_1971_2000_' # climato 1980-2000 based on model output ensemble mean, make_tos_climato.sh
+    indir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    indir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
 
-    sstRootName='modelmean_tos_' # ensemble mean of projection
-    #outdir='/data/cmip5/rcp/rcp8.5/tos_ensemble/'
-    outdir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
-    
+    sstRootName=None #'modelmean_tos_' # ensemble mean of projection
+    outdir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    outdir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
     dhmRootName='dhm_'
-
-    dekad=2050
-    yearList=range(dekad, dekad+10)
-    #yearList=range(2007, 2060)
-
-
-    tmpdir='/data/tmp/'
+    dekad=None #2050
+    tmpdir=None #'/data/tmp/'
     var='tos'
 
     realClimato='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc' # has continent=1.e20
     maxRealClimato='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc' # has continent=1.e20
     realClimRMSAtMaxSST='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/rms_at_maxsst_resized.nc' # has continent outline
+
+    logFile='{0}.log'.format(__file__)
+
+
+    ii = 1
+    while ii < len(sys.argv):
+        arg=sys.argv[ii].lower()
+
+        if arg == '-outdir' or arg == '-o':
+            ii = ii + 1
+            outdir=sys.argv[ii]
+        elif arg == '-path':
+            ii = ii + 1
+            indir=sys.argv[ii]
+        elif arg == '-tmpdir':
+            ii = ii + 1
+            tmpdir=sys.argv[ii]
+        elif arg=='-decad':
+            ii = ii + 1
+            decad = int(sys.argv[ii])
+        elif arg=='-log':
+            ii = ii + 1
+            logFile = sys.argv[ii]
+        ii = ii + 1
+
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    thisLogger = logging.getLogger('MyLogger')
+    thisLogger.setLevel(logging.DEBUG)
+    handler = logging.handlers.RotatingFileHandler(logFile, maxBytes=1024*500, backupCount=5)
+    thisLogger.addHandler(handler)
+
+    # check input parameters
+    if dekad is None:
+        exitMessage('Undefined dekad, use option -decad. Exit(10).',10)
+
+    yearList=range(dekad, dekad+10)
+
+
 
     do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, maxRealClimato, realClimRMSAtMaxSST, outdir, dhmRootName, yearList)
