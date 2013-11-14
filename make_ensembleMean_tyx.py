@@ -173,6 +173,10 @@ def autoMask(var, nodata):
 # ____________________________
 def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
+
+    if data is None:
+        return [accum, N, mini, maxi]
+
     dim = numpy.squeeze(data[:]).shape
 
     if accum is None:
@@ -278,7 +282,9 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         outfile.close()
         thisFile.close()
 
-    del mask, regrided
+        del mask, regrided
+        gc.collect()
+
     del newGrid, latAxis, lonAxis, lat_bnds, lon_bnds
     gc.collect()
     return createdFiles
@@ -320,7 +326,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
             dims=None
             units=None
             for ifile in listFID:
-                # get the actual file-date for this year/month (because day numbering vary, sometimes 1, 15 or 16...)
+                # get the actual file-date for this year/month (because day numbering varies, sometimes 1, 15 or 16...)
                 if ifile[variable].getTime() is None:
                     if refGrid is None:
                         refGrid = ifile[variable].getGrid()
@@ -343,37 +349,39 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                                                                        minVar, maxVar, nodata )
 
             # compute average
-            wtdivide = (accumN < nodata) * (accumN > 0)
-#            thisLogger.debug('accumN.shape {0}'.format(accumN.shape) )
-#            thisLogger.debug('wtdivide.shape {0}'.format(wtdivide.shape) )
+            # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
+            # in this case, accumN is None: do not save stats, and do not add a file name in createdFiles
+            if accumN is not None:
+                wtdivide = (accumN < nodata) * (accumN > 0)
+            
+            
+                if wtdivide.any():
+                    accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
 
-            if wtdivide.any():
-                accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
+                # compute std
 
-            # compute std
+                # create and save variables
+                meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
+                meanVar.setGrid(refGrid)
 
-            # create and save variables
-            meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
-            meanVar.setGrid(refGrid)
+                counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
+                counter.setGrid(refGrid)
+                miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, attributes=dict(long_name='minimum', units=units) )
+                miniVar.setGrid(refGrid)
+                maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, attributes=dict(long_name='maximum', units=units) )
+                maxiVar.setGrid(refGrid)
 
-            counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
-            counter.setGrid(refGrid)
-            miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, attributes=dict(long_name='minimum', units=units) )
-            miniVar.setGrid(refGrid)
-            maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, attributes=dict(long_name='maximum', units=units) )
-            maxiVar.setGrid(refGrid)
+                outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
+                if os.path.exists(outfilename): os.remove(outfilename)
+                thisLogger.debug('Saving stats to file {0}'.format(outfilename))
+                outfile = cdms2.open(outfilename, 'w')
+                outfile.write(meanVar)
+                outfile.write(counter)
+                outfile.write(miniVar)
+                outfile.write(maxiVar)
+                outfile.close()
 
-            outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
-            if os.path.exists(outfilename): os.remove(outfilename)
-            thisLogger.debug('Saving stats to file {0}'.format(outfilename))
-            outfile = cdms2.open(outfilename, 'w')
-            outfile.write(meanVar)
-            outfile.write(counter)
-            outfile.write(miniVar)
-            outfile.write(maxiVar)
-            outfile.close()
-
-            createdFiles['{0}{1:02}'.format(iyear,imonth)] = outfilename
+                createdFiles['{0}{1:02}'.format(iyear,imonth)] = outfilename
 
     # close input files
     for ii in listFID: ii.close()
@@ -516,7 +524,6 @@ if __name__=="__main__":
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
         gc.collect()
-
 
     thisLogger.info( '>> Averaging models averages, for each date')
     for idate in processedFiles: # iteration over keys
