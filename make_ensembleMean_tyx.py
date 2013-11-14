@@ -520,12 +520,12 @@ if __name__=="__main__":
 
     thisLogger.info( '>> Averaging models averages, for each date')
     for idate in processedFiles: # iteration over keys
-        thisYear = idate[0:4]
-        thisMonth= idate[4:6]
+        thisYear = int(idate[0:4])
+        thisMonth= int(idate[4:6])
         thisLogger.info('>> Averaging date {0}'.format(idate))
         listFiles = [x for x in flatten(processedFiles[idate])]
         thisLogger.info('>> averaging files '.format(listFiles))
-        returnedList = do_stats('mean_{0}'.format(variable), (thisYear), (thisMonth), listFiles, tmpdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
+        returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
 
         gc.collect()
 
