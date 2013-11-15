@@ -3,21 +3,21 @@
 # \date November 2013
 
 function tosEM(){
-    rcp=rcp45
-    model=modellisttos45.txt
+    rcp=rcp85 #rcp45
+    model=modellist_tos.txt # modellisttos45.txt
     var=tos
-    indir=/databis/cmip5_bis/rcp/rcp4.5/tos/
+    indir=/data/cmip5/rcp/rcp8.5/tos/ # /databis/cmip5_bis/rcp/rcp4.5/tos/
     outdir=/data/tmp/new_algo/${var}_${rcp}
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2030 -endYear 2033 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2040 -endYear 2043 -rcp ${rcp}
 
-  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2034 -endYear 2037 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2044 -endYear 2047 -rcp ${rcp}
 
-  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2038 -endYear 2039 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2048 -endYear 2049 -rcp ${rcp}
     # produce some extra month for DHM 4 months rolling window
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2029 -endYear 2029 -monthlist '10,11,12' -rcp ${rcp}
+#    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2029 -endYear 2029 -monthlist '10,11,12' -rcp ${rcp}
 }
 
 function dhm(){
@@ -25,7 +25,7 @@ function dhm(){
     indir='/data/tmp/new_algo/tos_rcp85'
     inpref='ensemble_tos_rcp85_'
     variable='mean_mean_tos'
-    decad=2030
+    decad=$1
     climDir='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc'
     maxRealClim='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc'
     rmsAtMaxClim='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/rms_at_maxsst_resized.nc'
@@ -38,4 +38,4 @@ function dhm(){
 }
 
 tosEM
-dhm
+dhm 2040
