@@ -11,16 +11,20 @@ function tosEM(){
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2030 -endYear 2033 -rcp ${rcp}
+  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2030 -endYear 2033 -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2034 -endYear 2037 -rcp ${rcp}
+  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2034 -endYear 2037 -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2038 -endYear 2039 -rcp ${rcp}
+  #  ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2038 -endYear 2039 -rcp ${rcp}
+    # produce some extra month for DHM 4 months rolling window
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2029 -endYear 2029 -monthlist '10,11,12' -rcp ${rcp}
 }
 
 function dhm(){
     outdir='/data/tmp/new_algo/dhm/'
     indir='/data/tmp/new_algo/tos_rcp85'
+    inpref='ensemble_tos_rcp85_'
+    variable='mean_mean_tos'
     decad=2030
     climDir='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc'
     maxRealClim='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc'
@@ -29,9 +33,9 @@ function dhm(){
     modelClim='climato_tos_1971_2000_'
     bindir='./'
 
-    ${bindir}/make_dhm.py -o ${outdir} -in ${indir} -decad ${decad} -clim ${climDir} ${maxRealClim} ${rmsAtMaxClim} -modelClim ${modelClimDir} ${modelClim}
+    ${bindir}/make_dhm.py -o ${outdir} -in ${indir} ${inpref} -var ${variable} -decad ${decad} -clim ${climDir} ${maxRealClim} ${rmsAtMaxClim} -modelClim ${modelClimDir} ${modelClim}
 
 }
 
-
-dhm()
+tosEM
+dhm
