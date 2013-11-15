@@ -28,7 +28,26 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS: to be completed'
+    textUsage='SYNOPSIS:\n\t{0} -o|-outdir  PATHOUT -outpref OUTPREFIX -input|-in|-i PATHIN PREFIXIN [-tmpdir TMPPATH]\n'.format(__file__)
+    textUsage=textUsage+'\t[-var VARIABLE]\n'
+    textUsage=textUsage+'\t-clim CLIMATO CLIMATOMAX CLIMRMSATMAX\n'
+    textUsage=textUsage+'\t-modelClim MODELCLIMPATH MODELCLIMPREF\n'
+    textUsage=textUsage+'\t-decad DECAD [-log LOGFILE]\n'
+    textUsage=textUsage+'\n\tPATHOUT: output directory, created if does not exist;\n'
+    textUsage=textUsage+'\tOUTPREF: prefix for the output name, default: dhm_;\n'
+    textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
+    textUsage=textUsage+'\tPREFIXIN: prefix of the input files;\n'
+    textUsage=textUsage+'\tTMPPATH: temporary path. Default: a random pathname is defined at runtime, as a leaf of PATHOUT;\n'
+    textUsage=textUsage+'\tVARIABLE: netcdf variable name to use for processing. Default is tos;\n'
+    textUsage=textUsage+'\tCLIMATO: a climatology file, same grid as the SST, with 12 months;\n'
+    textUsage=textUsage+'\tCLIMATOMAX: max value for the climatology;\n'
+    textUsage=textUsage+'\tCLIMTSMATMAX: RMS observed at the climatology max;\n'
+    textUsage=textUsage+'\tMODELCLIMPATH: path to models historical values (before projections);\n'
+    textUsage=textUsage+'\tMODELCLIMPREF: root name (prefix) for the historical files;\n'
+    textUsage=textUsage+'\tDECAD: the Year at which start counting a decad for the final synthesis;\n'
+    textUsage=textUsage+'\tLOGFILE: a logfile name. Default: {0}.log'.format(__file__)
+
+    print textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
     thisLogger.critical(msg)
@@ -292,20 +311,24 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 # _______________
 if __name__=="__main__":
 
+ 
+    indir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    indir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
+    outdir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    outdir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
+    tmpdir=None #'/data/tmp/'
+
     inhist=None #'/data/cmip5/rcp/rcp8.5/toshist_ensemble/'
     modelClimatoRootName=None #'climato_tos_1971_2000_' # climato 1980-2000 based on model output ensemble mean, make_tos_climato.sh
-    indir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    indir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
 
-    sstRootName=None #'modelmean_tos_' # ensemble mean of projection
-    outdir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    outdir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
+    realClimato=None #'/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc' # has continent=1.e20
+    maxRealClimato=None #'/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc' # has continent=1.e20
+    realClimRMSAtMaxSST=None #'/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/rms_at_maxsst_resized.nc' # has continent outline
+
+    sstRootName=None #'modelmean_tos_' # ensemble mean of projections
     dhmRootName='dhm_'
     dekad=None #2050
-    tmpdir=None #'/data/tmp/'
     var='tos'
 
-    realClimato='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc' # has continent=1.e20
-    maxRealClimato='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc' # has continent=1.e20
-    realClimRMSAtMaxSST='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/rms_at_maxsst_resized.nc' # has continent outline
+
 
     logFile='{0}.log'.format(__file__)
 
@@ -317,15 +340,35 @@ if __name__=="__main__":
         if arg == '-outdir' or arg == '-o':
             ii = ii + 1
             outdir=sys.argv[ii]
-        elif arg == '-path':
+        elif arg=='-outpref':
+            ii = ii + 1
+            dhmRootName=sys.argv[ii]
+        elif arg == '-input' or arg=='-i' or arg=='-in':
             ii = ii + 1
             indir=sys.argv[ii]
+            ii = ii + 1
+            sstRootName = sys.argv[ii]
         elif arg == '-tmpdir':
             ii = ii + 1
             tmpdir=sys.argv[ii]
+        elif arg == '-var':
+            ii = ii + 1
+            var=sys.argv[ii]
         elif arg=='-decad':
             ii = ii + 1
             decad = int(sys.argv[ii])
+        elif arg=='-modelclim':
+            ii = ii + 1
+            inhist = sys.argv[ii]
+            ii = ii + 1
+            modelClimatoRootName = sys.argv[ii]
+        elif arg=='-clim':
+            ii = ii + 1
+            realClimato = sys.argv[ii]
+            ii = ii + 1
+            maxRealClimato = sys.argv[ii]
+            ii = ii  + 1
+            realClimRMSAtMaxSST = sys.arv[ii]
         elif arg=='-log':
             ii = ii + 1
             logFile = sys.argv[ii]
@@ -338,11 +381,56 @@ if __name__=="__main__":
     thisLogger.addHandler(handler)
 
     # check input parameters
+    if indir is None:
+        exitMessage('Missing input directory, use option -input. Exit(2).',2)
+    if sstRootName is None:
+        exitMessage('Missing input files prefix, use option -input. Exit(2).',2)
+    if outdir is None:
+        exitMessage('Missing output directory, use option -outdir. Exit(3).', 3)
+    if inhist is None:
+        exitMessage('Missing directory for historical data, use option -modelClim. Exit(4).',4)
+    if modelClimatoRootName is None:
+        exitMessage('Missing prefix for historical dataset, use option -modelClim. Exit(4).',4)
+    if realClimato is None:
+        exitMessage('Missing file for real climatology, use option -clim. Exit(5).',5)
+    if maxRealClimato is None:
+        exitMessage('Missing file for real climatology max, use option -clim. Exit(5).',5)
+    if realClimRMSAtMaxSST is None:
+        exitMessage('Missing file for climato RMS at max SST, use option -clim. Exit(5).',5)
+    if dhmRootName is None:
+        exitMessage('Missing prefix for dhm output files, use option -outprefix. Exit(6).',6)
     if dekad is None:
         exitMessage('Undefined dekad, use option -decad. Exit(10).',10)
 
+    # check dirs existing
+    if not os.path.isdir(indir):
+        exitMessage('{0} does not exist or is not a directory. Exit(20).',20)
+    if not os.path.isdir(outdir):
+        if not os.path.exists(outdir):
+            thisLogger.warning('Creating directory {0}. Continue.'.format(outdir))
+            os.makedirs(outdir)
+        else:
+            exitMessage('{0} exists and is not a directory. Exit(21).'.format(outdir),21)
+    if not os.path.isdir(inhist):
+        exitMessage('{0} does not exist or is not a directory. Exit(20).'.format(), 20)
+
+    # check files existing
+    if not os.path.exists(realClimato):
+        exitMessage('Climatology file {0} not found. Exit(22).'.format(realClimato),22)
+    if not os.path.exists(maxRealClimato):
+        exitMessage('Max Real Climatology file {0} not found. Exit(22).'.format(maxRealClimato),22)
+    if not os.path.exists(realClimRMSAtMaxSST):
+        exitMessage('climato RMS at max SST file {0} not found. Exit(22).'.format(realClimRMSAtMaxSST),22)
+
+    # manage tmpdir
+    if tmpdir is None:
+        tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
+    if not os.path.exists(tmpdir): os.makedirs(tmpdir)
+
+
     yearList=range(dekad, dekad+10)
 
-
-
     do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, maxRealClimato, realClimRMSAtMaxSST, outdir, dhmRootName, yearList)
+
+
+# end of file
