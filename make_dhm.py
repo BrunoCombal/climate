@@ -107,26 +107,14 @@ def makeGrid():
 
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
 # _______________
-def quickSave(data, name, path):
-    # for netcdf3: set flags to 0
-    cdms2.setNetcdfShuffleFlag(0) #1
-    cdms2.setNetcdfDeflateFlag(0) #1
-    cdms2.setNetcdfDeflateLevelFlag(0) #3
-
-    outname=os.path.join(path, name)
-    if os.path.exists(outname): os.remove(outname)
-    fh = cdms2.open(outname, 'w')
-    variable = cdms2.createVariable(data, id='data')
-    fh.write(variable)
-    fh.close()
-# _______________
 def saveData(outfilename, data, typecode, id, fill_value, grid, copyaxes, attribute1, attribute2, latAxis, lonAxis):
     
     # for netcdf3: set flags to 0
     cdms2.setNetcdfShuffleFlag(0) #1
     cdms2.setNetcdfDeflateFlag(0) #1
     cdms2.setNetcdfDeflateLevelFlag(0) #3
-
+    
+    thisLogger.info('Saving data {0} to file {1}'.format(id, outfilename))
     if os.path.exists(outfilename): os.remove(outfilename)
     outfile = cdms2.open( outfilename, 'w')
     var = cdms2.createVariable(data, typecode=typecode, id=id, fill_value=fill_value, grid=grid, copyaxes=copyaxes, attributes=dict(long_name=attribute1, units=attribute2) )
@@ -149,49 +137,6 @@ def do_resize(var, infile):
 
     outvar = interpolate.griddata(numpy.reshape(points, (dim[0]*dim[1],2)), numpy.ravel(yvar), (outGY, outGX), method='linear')
 
-    return outvar
-# _______________
-def do_resize_fit(var, infile):
-    print 'try to open ',infile
-    fh=cdms2.open( infile , 'r')
-    data = numpy.squeeze(fh[var][:]) # 180x360
-
-    dim = data.shape
-    print 'dim=',dim
-
-    points=numpy.zeros( (dim[0], dim[1], 2))
-    for jj in range(dim[0]):
-        for ii in range(dim[1]):
-            points[jj, ii,0]=jj
-            points[jj, ii,1]=ii
-
-    outGY, outGX = numpy.mgrid[ 0 : dim[0] : 0.5 , 0: dim[1]:0.5 ]
-    outvar = interpolate.griddata(numpy.reshape(points, (dim[0]*dim[1],2)), numpy.ravel(data), (outGY, outGX), method='linear')
-
-    # now resize from -85 to 85
-    outvar = outvar[ 5: 340]
-    print 'do_resize_fit ->',dim, outvar.shape
-
-    return numpy.flipud(outvar)
-# _______________
-def do_resize_all(var, infile):
-    yvar=infile[var][:] # y, x
-    dim=yvar.shape
-
-    points=numpy.zeros( (dim[1], dim[2], 2))
-    for ii in range(dim[1]):
-        for jj in range(dim[2]):
-            points[ii,jj,0]=ii
-            points[ii,jj,1]=jj
-
-    outGY, outGX = numpy.mgrid[ -85 + 85 :85 + 85  :0.5 , 0:360:0.5 ]
-
-    outvar = numpy.zeros( (dim[0], outGX.shape[0], outGX.shape[1]) )
-    for itime in range(0, 12):
-        print 'regridding for time: {0}'.format(itime)
-        tmp = interpolate.griddata(numpy.reshape(points, (dim[1]*dim[2],2)), numpy.ravel(yvar[itime, :, :]), (outGY, outGX), method='linear')
-        outvar[itime,:,:] = numpy.flipud(tmp)
-        
     return outvar
 # _______________
 def readVar(var, infile):
@@ -257,16 +202,8 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
                 # thisModelSST: continents=1.e20, modelClim=continents=1.e20
                 tosCorrected = realClim[ shiftMonth-1, :, : ] + ( thisModelSST[var][:] - modelClim[ shiftMonth-1 ]['Band1'][:])
 
-                #quickSave(realClim[ thisMonth,:,: ], 'realClim.nc', '/data/tmp')
-                quickSave(thisModelSST[var][:], 'thisModelSST.nc','/data/tmp')
-                quickSave(modelClim[ shiftMonth-1 ]['Band1'][:], 'modelClim.nc','/data/tmp')
-                #quickSave(climMax, 'climMax.nc','/data/tmp')
-                #quickSave(RMSatMaxSST,'rmsMaxSST.nc','/data/tmp')
-                #quickSave(tosCorrected, 'tosCorrected_{0:02}_{1}.nc'.format(imonth,ishift), '/data/tmp')
                 if ishift == 0:
                     delta = thisModelSST[var][:] - modelClim[ shiftMonth-1 ]['Band1'][:]
-                    quickSave(delta, 'delta_{0}_{1:02}_{2}.nc'.format(iyear,imonth,ishift), '/data/tmp')
-                #sys.exit()
 
                 thisModelSST.close()
 
@@ -297,7 +234,6 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
             # write output
             outfilename=os.path.join( outdir , '{0}{1}{2:02}.nc'.format(dhmRootName, iyear, imonth) )
             saveData(outfilename, dhm.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'f', 'dhm', 1.e20, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
-        #sys.exit()
         # all months done for this year    
         saveData( os.path.join( outdir , '{0}{1}.nc'.format(dhmRootName, iyear)), dhmYearly.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'f', 'dhm', 1.e20, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
 
@@ -443,6 +379,16 @@ if __name__=="__main__":
 
 
     yearList=range(dekad, dekad+10)
+
+    thisLogger.info('Processing information:')
+    thisLogger.info('input directory: {0}'.format(indir))
+    thisLogger.info('Input variable: {0}'.format(var))
+    thisLogger.info('Model Climatology, path: {0}'.format(inhist))
+    thisLogger.info('Model Climatology, file prefix: {0}'.format(modelClimatoRootName))
+    thisLogger.info('Observation Climatology, file: {0}'.format(realClimato))
+    thisLogger.info('Observation Climatology, max: {0}'.format(maxRealClimato))
+    thisLogger.info('Observation Climatology, rms at max: {0}'.format(realClimRMSAtMaxSST))
+    thisLogger.info('Output directory: {0}'.format(outdir))
 
     do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, maxRealClimato, realClimRMSAtMaxSST, outdir, dhmRootName, yearList)
 
