@@ -28,7 +28,7 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\t{0} -o|-outdir  PATHOUT -outpref OUTPREFIX -input|-in|-i PATHIN PREFIXIN [-tmpdir TMPPATH]\n'.format(__file__)
+    textUsage='SYNOPSIS:\n\t{0} -o|-outdir  PATHOUT [-outpref OUTPREFIX] -input|-in|-i PATHIN PREFIXIN [-tmpdir TMPPATH]\n'.format(__file__)
     textUsage=textUsage+'\t[-var VARIABLE]\n'
     textUsage=textUsage+'\t-clim CLIMATO CLIMATOMAX CLIMRMSATMAX\n'
     textUsage=textUsage+'\t-modelClim MODELCLIMPATH MODELCLIMPREF\n'
@@ -327,8 +327,6 @@ if __name__=="__main__":
     dhmRootName='dhm_'
     dekad=None #2050
     var='tos'
-
-
 
     logFile='{0}.log'.format(__file__)
 
