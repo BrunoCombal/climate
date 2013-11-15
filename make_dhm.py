@@ -19,6 +19,8 @@ import numpy
 #import glob
 import sys
 import os
+import string
+import random
 #from os import path
 #import re
 from scipy import interpolate
@@ -55,6 +57,9 @@ def exitMessage(msg, exitCode='1'):
     print
     print usage()
     sys.exit(exitCode)
+# _________________________________
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
 # _________________________________
 # return the month count from year 0
 def yyyymm2count(year, month):
@@ -242,7 +247,10 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
                 shiftYear, shiftMonth = count2yyyymm( yyyymm2count(iyear, imonth) + ishift)
                 #print 'rolling window: ', iyear, imonth, ishift, ' >> ', shiftYear, shiftMonth
                 sstFName = os.path.join(indir, '{0}{1}{2:02}.nc'.format(sstRootName, shiftYear, shiftMonth))
-                #print '!!! opening ',sstFName
+                if not os.path.exists(sstFName):
+                    thisLogger.critical('in do_dhm: file {0} not found. Exit(100).'.format(sstFName))
+                    exitMessage('in do_dhm: file {0} not found. Exit(100).'.format(sstFName),100)
+
                 thisModelSST = cdms2.open( sstFName, 'r' )
 
                 # thisModelSST: K ; modelClim: K ; realClimato: C
@@ -338,35 +346,43 @@ if __name__=="__main__":
         if arg == '-outdir' or arg == '-o':
             ii = ii + 1
             outdir=sys.argv[ii]
+
         elif arg=='-outpref':
             ii = ii + 1
             dhmRootName=sys.argv[ii]
+
         elif arg == '-input' or arg=='-i' or arg=='-in':
             ii = ii + 1
             indir=sys.argv[ii]
             ii = ii + 1
             sstRootName = sys.argv[ii]
+
         elif arg == '-tmpdir':
             ii = ii + 1
             tmpdir=sys.argv[ii]
+
         elif arg == '-var':
             ii = ii + 1
             var=sys.argv[ii]
+
         elif arg=='-decad':
             ii = ii + 1
-            decad = int(sys.argv[ii])
+            dekad = int(sys.argv[ii])
+
         elif arg=='-modelclim':
             ii = ii + 1
             inhist = sys.argv[ii]
             ii = ii + 1
             modelClimatoRootName = sys.argv[ii]
+
         elif arg=='-clim':
             ii = ii + 1
             realClimato = sys.argv[ii]
             ii = ii + 1
             maxRealClimato = sys.argv[ii]
             ii = ii  + 1
-            realClimRMSAtMaxSST = sys.arv[ii]
+            realClimRMSAtMaxSST = sys.argv[ii]
+
         elif arg=='-log':
             ii = ii + 1
             logFile = sys.argv[ii]
@@ -398,7 +414,7 @@ if __name__=="__main__":
     if dhmRootName is None:
         exitMessage('Missing prefix for dhm output files, use option -outprefix. Exit(6).',6)
     if dekad is None:
-        exitMessage('Undefined dekad, use option -decad. Exit(10).',10)
+        exitMessage('Undefined decad, use option -decad. Exit(10).',10)
 
     # check dirs existing
     if not os.path.isdir(indir):
