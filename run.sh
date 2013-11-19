@@ -11,11 +11,11 @@ function tosEM(){
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2040 -endYear 2043 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2050 -endYear 2053 -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2044 -endYear 2047 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2054 -endYear 2057 -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2048 -endYear 2049 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2058 -endYear 2059 -rcp ${rcp}
     # produce some extra month for DHM 4 months rolling window
 #    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2029 -endYear 2029 -monthlist '10,11,12' -rcp ${rcp}
 }
@@ -38,4 +38,4 @@ function dhm(){
 }
 
 tosEM
-dhm 2040
+dhm 2050
