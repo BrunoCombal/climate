@@ -45,7 +45,6 @@ def exitMessage(msg, exitCode='1'):
     sys.exit(exitCode)
 # ___________________________
 def boolConvert(code):
-
     if code=='0':
         return False
     if code.lower()=='false':
@@ -105,14 +104,6 @@ def agregateDict(refDict, newDict):
     del val
     gc.collect()
     return result
-# ____________________________
-def make_levels():
-    levelAxis = cdms2.createAxis([3.3, 10, 20, 30, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500])
-    levelAxis.id='levels'
-    levelAxis.designateLevel(True)
-    levelAxis.units='meters'
-
-    return levelAxis
 # ____________________________
 def makeGrid():
     xstart=0
@@ -292,7 +283,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
 # if a new grid is passed: regrid
-def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20):
+def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20, doSTD=False):
     
     if validYearList is None:
         exitMessage('List of years to process is undefined, edit code. Exit 5.',5)
@@ -360,7 +351,8 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                     accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
 
                 # compute std
-
+                if doSTD:
+                    thisLogger.info('Computing std: to be implemented')
                 # create and save variables
                 meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
                 meanVar.setGrid(refGrid)
@@ -405,7 +397,7 @@ if __name__=="__main__":
     deleteRegrid = False
     modelStat = True
     rcp=None
-    logFile='make_ensembleMean_tyx.log'
+    logFile='{0}.log'.format(__file__)
     minVar=-1.e20
     maxVar=1.e20
     topLevel=0
@@ -483,6 +475,7 @@ if __name__=="__main__":
     if tmpdir is None:
         tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
 
+    if not os.path.exists(outdir): os.makedirs(outdir)
     if not os.path.exists(tmpdir): os.makedirs(tmpdir)
 
     # for netcdf3: set flag to 0
