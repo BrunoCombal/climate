@@ -80,6 +80,10 @@ function dhm(){
 
 }
 
+# uv-cdat library must first be sourced
+source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
+
+
 tosEM 2050 rcp85
 dhm 2050 rcp85
 #thetaoEM
