@@ -2,28 +2,71 @@
 # \author Bruno Combal
 # \date November 2013
 
+# \brief Computes tos ensemble means
+# $1 decade
+# $2 rcp85, rcp45
 function tosEM(){
-    rcp=rcp85 #rcp45
-    model=modellist_tos.txt # modellisttos45.txt
+    decade=$1
+    rcp=$2
     var=tos
-    indir=/data/cmip5/rcp/rcp8.5/tos/ # /databis/cmip5_bis/rcp/rcp4.5/tos/
+
+    if [ ${rcp} = 'rcp85' ]; then
+	rcp=rcp85
+	model=modellist_tos.txt
+	indir=/data/cmip5/rcp/rcp8.5/tos/
+    elif [ ${rcp} = 'rcp45' ]; then
+	rcp=rcp45
+	model=modellisttos45.txt
+	indir=/databis/cmip5_bis/rcp/rcp4.5/tos/
+    else
+	echo "Function tosEM: wrong input parameter '$2'="${rcp}". Exit(1)."
+	exit 1
+    fi
+
     outdir=/data/tmp/new_algo/${var}_${rcp}
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2050 -endYear 2053 -rcp ${rcp}
+    dStart=${decade}
+    dEnd=$((decade + 3))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2054 -endYear 2057 -rcp ${rcp}
+    dStart=$((dEnd + 1))
+    dEnd=$((dStart + 3))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
 
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2058 -endYear 2059 -rcp ${rcp}
+    dStart=$((dEnd + 1))
+    dEnd=$((decade + 9))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear${dEnd} -rcp ${rcp}
+    
     # produce some extra month for DHM 4 months rolling window
-#    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2029 -endYear 2029 -monthlist '10,11,12' -rcp ${rcp}
+    dStart=$((decade - 1))
+    dEnd=$((decade - 1))
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -monthlist '10,11,12' -rcp ${rcp}
 }
 
+# \brief Computes thetao ensemble means
+function thetaoEM(){
+    rcp=rcp85 #rcp45
+    model=modellist_thetao_rcp85.txt
+    var=thetao
+    indir=/databis/cmip5_bis/rcp/rcp8.5/thetao
+    outdir=/data/tmp/new_algo/${var}_${rcp}
+    tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
+    bindir='./'
+
+    ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp}
+
+}
+
+# \brief Computes DHM (degree heating month)
 function dhm(){
-    outdir='/data/tmp/new_algo/dhm/'
-    indir='/data/tmp/new_algo/tos_rcp85'
-    inpref='ensemble_tos_rcp85_'
+    outdir='/data/tmp/new_algo/dhm_rcp'${2}'/'
+    indir='/data/tmp/new_algo/tos_'${2}
+    inpref='ensemble_tos_'${2}'_'
     variable='mean_mean_tos'
     decad=$1
     climDir='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc'
@@ -37,5 +80,6 @@ function dhm(){
 
 }
 
-tosEM
-dhm 2050
+tosEM 2050 rcp85
+dhm 2050 rcp85
+#thetaoEM
