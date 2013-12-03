@@ -238,7 +238,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
 
         if thisFile[variable].getLevel() is None:
             data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
-            if thisFile[variable].getMissing() is None: # some files do not have a mask defined (eg. EC-Earth with 273.15 in lands instead of 1.e20
+            if thisFile[variable].getMissing() < 1.e20: # some files do not have a mask set to 1.e20 or no mask at all (eg. EC-Earth and MRI with 0 in lands instead of 1.e20 
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
                 data = autoMask(tmp, nodata)
                 del tmp
