@@ -109,7 +109,7 @@ def make_levels():
     
     values = [3.3, 10, 20, 30, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500]
     levelAxis = cdms2.createAxis( values )
-    print dir(levelAxis)
+
     bounds = [0]
     for ii in xrange(len(values)-1):
         bounds.append( 0.5*(values[ii] + values[ii+1])  )
@@ -121,18 +121,18 @@ def make_levels():
 
     return levelAxis
 # ____________________________
-def makeGrid():
+def makeGrid(thisStep=0.5):
     xstart=0
     xend=360
-    xstep=0.5
+    xstep=thisStep
     ystart=-85
     yend=85
-    ystep=0.5
+    ystep=thisStep
 
     lon_bnds=[]
     lon=[]
     for ii in numpy.arange(xstart, xend, xstep):
-        lon_bnds.append( [ii, ii+xstep] )
+        lon_bnds.append( [ii, ii + xstep] )
         lon.append(ii+0.5*xstep)
     lon_bnds=numpy.array(lon_bnds)
     lon=numpy.array(lon)
@@ -140,7 +140,7 @@ def makeGrid():
     lat_bnds=[]
     lat=[]
     for ii in numpy.arange(ystart, yend, ystep):
-        lat_bnds.append([ii, ii+ystep])
+        lat_bnds.append([ii, ii + ystep])
         lat.append(ii+0.5*ystep)
     lat_bnds=numpy.array(lat_bnds)
     lat=numpy.array(lat)
@@ -152,13 +152,41 @@ def makeGrid():
     latAxis.long_name='Latitude'
 
     lonAxis = cdms2.createAxis(lon, lon_bnds)
-    lonAxis.designateLongitude(True, 360.0)
-    lonAxis.designateCircular(360)
+    lonAxis.designateLongitude(True, xend)
+    lonAxis.designateCircular(xend)
     lonAxis.units='degrees_east'
     lonAxis.id='longitude'
     lonAxis.long_name='Longitude'
 
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
+# ____________________________
+def do_cleanNodataLines(var, nodata):
+
+    oneSlice = numpy.squeeze(var[:,:,0])
+
+    refShape=oneSlice.shape
+    # where are the nodata vertical lines?
+    # 1./ transform the slice: 0=data, 1=nodata
+    test = numpy.zeros(oneSlice.shape)
+    wto1 = oneSlice >= nodata
+    if wto1.any():
+        test[wto1] = 1
+    else:
+        thisLogger.info('do_cleanNodataLines: no-data is missing from this dataset. Return.')
+        return var
+
+    # 2./ multiplications: if there are only nodata, results is 1
+    line = numpy.array(oneSlice[0, :]) # copy first line
+    for il in range(oneSlice.shape[1]):
+        line = line * oneSlice[il, :]
+
+    # 3./ do we have a 1 somewhere? It means that there was only nodata along the line
+    wone = line == 1
+    if wone.any():
+        thisLogger.info('do_cleanNodataLines: found {0} lines to correct.'.format(len(wone)))
+    else:
+        thisLogger.info('do_cleanNodataLines: found no line to correct.')
+        return var
 # ____________________________
 # auto mask based on the principle that the mask does not change in-between dates
 def autoMask(var, nodata):
@@ -179,7 +207,6 @@ def autoMask(var, nodata):
     gc.collect()
     return var
 # ____________________________
-#def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 def updateCounters(accum, N, mini, maxi, FID, variable, thisYear, thisMonth, minVar, maxVar, nodata=1.e20):
 
     if FID[variable].getTime is None:
@@ -191,7 +218,6 @@ def updateCounters(accum, N, mini, maxi, FID, variable, thisYear, thisMonth, min
         else:
             thisLogger.critical('Found {2} date(s) matching year {0} month {1} in current file, should be 1. Exit(111).'.format(thisYear, thisMonth,len(thisTime)))
             exitMessage('Found {2} date(s) matching year {0} month {1} in current file, should be 1. Exit(111)'.format(thisYear, thisMonth,len(thisTime)), 111)
-
 
     if data is None:
         return [accum, N, mini, maxi]
@@ -263,18 +289,15 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         thisLogger.info('end time = {0}-{1:02}'.format(endTime[-1].year, endTime[-1].month))
 
         if thisFile[variable].getLevel() is None:
-            data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
-            if thisFile[variable].getMissing() is None: # some files do not have a mask defined (eg. EC-Earth with 273.15 in lands instead of 1.e20
-                tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
-                data = autoMask(tmp, nodata)
-                del tmp
-                gc.collect()
-            else:
-                data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
+            # some files do not have nodata set to 1.e20 (EC-EARTH), some have masked values set to something else (0 and 1.e20, for MRI): let's process our mask by identifying unchanged values
+            tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
+            data = autoMask(tmp, nodata)
+            del tmp
+            gc.collect()
         else:
-            levelAxis = make_levels()
-            topLevel = levelAxis.getBounds().min()
-            bottomLevel = levelAxis.getBounds().max()
+            verticalGrid = make_levels()
+            topLevel = levelAxis.min()
+            bottomLevel = levelAxis.max()
             if thisFile[variable].getMissing() is None:
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
                 data = autoMask(tmp, nodata)
@@ -287,7 +310,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         if thisFile[variable].getLevel() is None:
             regrided = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
         else:
-            tmp = data.regrid(newGrid, missing=nodata, order='tzyx', mask=mask)
+            tmp = data.regrid(newGrid, missing=nodata, order=thisFile[variable].getOrder(), mask=mask)
             regrided = tmp.pressureRegrid( verticalGrid, method='linear')
 
         regrided.id=variable
@@ -330,7 +353,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     thisLogger.debug('Averaging with files: ')
     for ifile in lstInFile: 
         listFID.append(cdms2.open(ifile, 'r'))
-        thisLogger.debug('  | {0}'.format(os.path.basename(ifile)))
+        thisLogger.debug(ifile)
 
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
@@ -345,17 +368,19 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
             units=None
             for ifile in listFID:
 
-                if refGrid is None:
-                    refGrid = ifile[variable].getGrid() # axis=ifile[variable].getAxisList(omit='time')
+                if refGrid is None: 
+                    refGrid = ifile[variable].getGrid()
+                    # axis=ifile[variable].getAxisList(omit='time')
                     if ifile[variable].getTime is None:
                         dims=numpy.squeeze(ifile[variable]).shape
                     else:
                         dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
                     units= ifile[variable].units
 
-                [accumVar, accumN, mini, maxi] = udapteCounters( accumVar, accumN, mini, maxi,
+                [accumVar, accumN, mini, maxi] = updateCounters( accumVar, accumN, mini, maxi,
                                                                  ifile, variable, iyear, imonth,
                                                                  minVar, maxVar, nodata)
+
             # compute average
             # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
             # in this case, accumN is None: do not save stats, and do not add a file name in createdFiles
@@ -369,7 +394,6 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                 # compute std
                 if doSTD:
                     thisLogger.info('Computing std: to be implemented')
-            
 
                 # create and save variables
                 meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
