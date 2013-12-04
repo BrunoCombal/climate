@@ -144,7 +144,6 @@ def readVar(var, infile):
     data = fh[var][:]
     fh.close()
     return data
-
 # _______________
 # arrays were interpolated: creation of false 'nodata' values along the coast.
 # no data are all reset
@@ -248,6 +247,11 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
         if wnodata.any():
             frequencyLvl2[wnodata] = -1
 
+    # reset nodata to -1
+    wrecode = frequencyLvl2 >= nodata
+    if wrecode.any():
+        frequencyLvl2[wrecode] = -1
+
     # save frequency
     saveData(os.path.join( outdir , '{0}{1}.nc'.format('frequency_lvl2_', yearList[0])), frequencyLvl2.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'i', 'lvl2_freq', -1, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
     for ii in modelClim:
@@ -255,7 +259,6 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 # _______________
 if __name__=="__main__":
 
- 
     indir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    indir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
     outdir=None #'/data/cmip5/rcp/rcp8.5/tos_ensemble/'#    outdir='/data/cmip5/rcp/rcp8.5/tos4.5_ensemble/'
     tmpdir=None #'/data/tmp/'
