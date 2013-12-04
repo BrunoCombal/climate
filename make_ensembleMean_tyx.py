@@ -105,18 +105,18 @@ def agregateDict(refDict, newDict):
     gc.collect()
     return result
 # ____________________________
-def makeGrid():
+def makeGrid(thisStep=0.5):
     xstart=0
     xend=360
-    xstep=0.5
+    xstep=thisStep
     ystart=-85
     yend=85
-    ystep=0.5
+    ystep=thisStep
 
     lon_bnds=[]
     lon=[]
     for ii in numpy.arange(xstart, xend, xstep):
-        lon_bnds.append( [ii, ii+xstep] )
+        lon_bnds.append( [ii, ii + xstep] )
         lon.append(ii+0.5*xstep)
     lon_bnds=numpy.array(lon_bnds)
     lon=numpy.array(lon)
@@ -124,7 +124,7 @@ def makeGrid():
     lat_bnds=[]
     lat=[]
     for ii in numpy.arange(ystart, yend, ystep):
-        lat_bnds.append([ii, ii+ystep])
+        lat_bnds.append([ii, ii + ystep])
         lat.append(ii+0.5*ystep)
     lat_bnds=numpy.array(lat_bnds)
     lat=numpy.array(lat)
@@ -136,13 +136,41 @@ def makeGrid():
     latAxis.long_name='Latitude'
 
     lonAxis = cdms2.createAxis(lon, lon_bnds)
-    lonAxis.designateLongitude(True, 360.0)
-    lonAxis.designateCircular(360)
+    lonAxis.designateLongitude(True, xend)
+    lonAxis.designateCircular(xend)
     lonAxis.units='degrees_east'
     lonAxis.id='longitude'
     lonAxis.long_name='Longitude'
 
     return((cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds), latAxis, lonAxis, lat_bnds, lon_bnds))
+# ____________________________
+def do_cleanNodataLines(var, nodata):
+
+    oneSlice = numpy.squeeze(var[:,:,0])
+
+    refShape=oneSlice.shape
+    # where are the nodata vertical lines?
+    # 1./ transform the slice: 0=data, 1=nodata
+    test = numpy.zeros(oneSlice.shape)
+    wto1 = oneSlice >= nodata
+    if wto1.any():
+        test[wto1] = 1
+    else:
+        thisLogger.info('do_cleanNodataLines: no-data is missing from this dataset. Return.')
+        return var
+
+    # 2./ multiplications: if there are only nodata, results is 1
+    line = numpy.array(oneSlice[0, :]) # copy first line
+    for il in range(oneSlice.shape[1]):
+        line = line * oneSlice[il, :]
+
+    # 3./ do we have a 1 somewhere? It means that there was only nodata along the line
+    wone = line == 1
+    if wone.any():
+        thisLogger.info('do_cleanNodataLines: found {0} lines to correct.'.format(len(wone)))
+    else:
+        thisLogger.info('do_cleanNodataLines: found no line to correct.')
+        return var
 # ____________________________
 # auto mask based on the principle that the mask does not change in-between dates
 def autoMask(var, nodata):
@@ -164,7 +192,6 @@ def autoMask(var, nodata):
     return var
 # ____________________________
 def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
-
 
     if data is None:
         return [accum, N, mini, maxi]
@@ -232,19 +259,19 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         if len(endTime)==0: # the last date is not in this file, process up to the end
             endTime = thisFile[variable].getTime().asComponentTime()
 
-
         thisLogger.info('start time = {0}-{1:02}'.format(startTime[0].year, startTime[0].month) )
         thisLogger.info('end time = {0}-{1:02}'.format(endTime[-1].year, endTime[-1].month))
 
         if thisFile[variable].getLevel() is None:
-            data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
-            if thisFile[variable].getMissing() < 1.e20: # some files do not have a mask set to 1.e20 or no mask at all (eg. EC-Earth and MRI with 0 in lands instead of 1.e20 
-                tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
-                data = autoMask(tmp, nodata)
-                del tmp
-                gc.collect()
-            else:
-                data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
+            # some files do not have nodata set to 1.e20 (EC-EARTH), some have masked values set to something else (0 and 1.e20, for MRI): let's process our mask by identifying unchanged values
+#            data = cdms2.createVariable(thisFile[variable].subRegion(time=(startTime[0], endTime[-1], 'cc')))
+#            if (thisFile[variable].getMissing() < 1.e20): # some files do not have a mask set to 1.e20 or no mask at all (eg. EC-Earth and MRI with 0 in lands instead of 1.e20 
+            tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
+            data = autoMask(tmp, nodata)
+            del tmp
+            gc.collect()
+#            else:
+#                data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
         else:
             verticalGrid = make_levels()
             topLevel = levelAxis.min()
