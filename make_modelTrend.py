@@ -28,6 +28,9 @@ def exitMessage(msg, exitCode='1'):
     print
     print usage()
     sys.exit(exitCode)
+# ____________________________
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
 # __________________________
 def getTrendType(argString):    
     if argString == "esm" or argString == "esmcontrol":
@@ -58,7 +61,58 @@ def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
 
     if len(listFile)=0: return None
     return sorted(listFile)
-#___________________________
+# ___________________________
+# for this version, assume the list is sorted in chronological order
+def do_trend(indir, fileList, variable, outfile):
+    # open all files
+    lstFID = []
+    for ii in fileList:
+        try:
+            fid = cdms2.open(os.path.join(indir, ii), 'r')
+        except:
+            thisLogger.warn('Could not open file {0}. Continue.'.format(ii))
+            continue
+        lstFID.append(fid)
+    # if no file was open, return None
+    if len(lstFID)==0: return (None,None)
+
+    # the total amount of data won't fit in memory. Process by line
+    # get data dimensions first, assumin all equal
+    dims=lstFID[0][variable].shape # assume t, z,y,x or t, y,x
+    
+    # create trend coefficient matrix
+    coeff = numpy.ma.masked_all( dims[1:]+(3,) )
+
+    # create time axis
+    timeAxis=[]
+    for ifid in lstFid:
+        thisTime = [ t.year + (t.month-1)/12 for t in ifid['time'].asComponentTime() ]
+        timeAxis = numpy.concatenate(timeAxis, thisTime)
+
+    for idx in dims[1:]:
+        if lstFID[0][variable][:, idx[0], idx[1]].mask.all() = True: # assume same nodata everywhere
+            continue
+
+        # get data from all files for this position idx
+        data=[]
+        for ifid in lstFID:
+            thisData = numpy.ravel(ifid[variable][:, idx])
+        data.append(thisData)
+
+        coeff[idx] = numpy.polyfit(timeAxis, data, 2)
+
+        del thisData
+        del data
+        gc.collect()
+
+    # save result
+    outfid=cdms2.open(outfile, 'w')
+    outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFid[0][variable].getGrid())
+    outfid.close()
+
+    # close fid
+    for ifid in lstFid: ifid.close()
+# ___________________________
 if __name__=="__main__":
 
     variable = None
@@ -103,6 +157,19 @@ if __name__=="__main__":
     handler = logging.handlers.RotatingFileHandler(logFile, maxBytes=1024*500, backupCount=5)
     thisLogger.addHandler(handler)
 
+    # process input parameter
+    if variable is None:
+        exitMessage('Missing a variable name to process. Exit(1).', 1)
+    if outdir is None:
+        exitMessage('Missing an output directory. Exit(2).',2)
+    if modelListFile is None:
+        exitMessage('Missing a model list file, use option -modellist. Exit(12).',12)
+    if tmpdir is None:
+        tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
+
+    if not os.path.exists(outdir): os.makedirs(outdir)
+    if not os.path.exists(tmpdir): os.makedirs(tmpdir) 
+
     # for netcdf3: set flag to 0
     cdms2.setNetcdfShuffleFlag(1)
     cdms2.setNetcdfDeflateFlag(1)
@@ -116,7 +183,7 @@ if __name__=="__main__":
         if lstFiles is None: continue
         # sort them in chronological order
         # call the trend estimator
-        (a, b)=do_trend(files)
-        # save a and b for this model
+        outfile='{0}/trend_{1}_{2}_{3}_{4}_{5}.nc'.format(outdir, variable, frequency, iModel, trendType, rip)
+        do_trend(indir, files, variable, outfile)
 
 # end of file
