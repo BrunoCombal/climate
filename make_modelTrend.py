@@ -20,6 +20,7 @@ import logging.handlers
 # ____________________________
 def usage():
     textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0). Developped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
+    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path INPATH -outdir OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE]'
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
