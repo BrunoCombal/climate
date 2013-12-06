@@ -19,8 +19,8 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0). Developped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
-    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path INPATH -outdir OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE]'
+    textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0).\nDevelopped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
+    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE]'
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
@@ -41,17 +41,20 @@ def getTrendType(argString):
     else: return ''
 # __________________________
 def getListFromFile(infile):
-    modeList=[]
+    modelList=[]
     try:
         with open(infile, "r") as f:
-            for textline in f:
+            for textLine in f:
                 thisStr = textLine.replace(" ", "").replace('\n','')
+                print thisStr
                 if not (thisStr==""):
                     modelList.append( thisStr )
     except IOError as e:
-        exitMessage('I/O Error {1} while processing text file {0}:{2}. Exit(10).'.format(modelListFile, e.errno, e.strerror), 10)
+        exitMessage('I/O Error {1} while processing text file {0}:{2}. Exit(10).'.format(infile, e.errno, e.strerror), 10)
     except:
-        exitMessage('Unexpected error while processing text file {0}. Exit(11).'.format(modeListFile), 11)
+        exitMessage('Unexpected error while processing text file {0}. Exit(11).'.format(infile), 11)
+
+    return modelList
 # __________________________
 # returns basefilenames, in alphabetical order
 def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
@@ -130,10 +133,10 @@ if __name__=="__main__":
     while ii < len(sys.argv):
         arg = sys.argv[ii].lower()
         
-        if arg == '-path':
+        if arg == '-path|-p':
             ii = ii + 1
             indir = sys.argv[ii]
-        elif arg == '-outdir':
+        elif arg == '-outdir' or arg=='-o':
             ii = ii + 1
             outdir = sys.argv[ii]
         elif arg == '-tmpdir':
@@ -142,6 +145,9 @@ if __name__=="__main__":
         elif arg == '-v':
             ii = ii + 1
             variable = sys.argv[ii]
+        elif arg == '-modellist':
+            ii = ii + 1
+            modelListFile = sys.argv[ii]
         elif arg == '-trendType':
             ii = ii + 1
             trendType = getTrendType(sys.argv[ii].lower())
@@ -165,7 +171,9 @@ if __name__=="__main__":
     if outdir is None:
         exitMessage('Missing an output directory. Exit(2).',2)
     if modelListFile is None:
-        exitMessage('Missing a model list file, use option -modellist. Exit(12).',12)
+        exitMessage('Missing a model list file, use option -modellist. Exit(3).',3)
+    if not os.path.exists(modelListFile):
+        exitMessage('Model list file {0} not found. Exit(4).',4)
     if tmpdir is None:
         tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
 
