@@ -37,7 +37,7 @@ def getTrendType(argString):
         return 'esmControl'
     elif argString == 'pi' or argString == 'pictrl' or argString == 'picontrol':
         return 'piControl'
-    else return ''
+    else: return ''
 # __________________________
 def getListFromFile(infile):
     modeList=[]
@@ -59,7 +59,7 @@ def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
     # get file list, non empty, sorted alphabetically
     listFile = [ os.path.basename(f) for f in glob.glob( os.path.join(indir, searchString) ) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
-    if len(listFile)=0: return None
+    if len(listFile)==0: return None
     return sorted(listFile)
 # ___________________________
 # for this version, assume the list is sorted in chronological order
@@ -90,7 +90,7 @@ def do_trend(indir, fileList, variable, outfile):
         timeAxis = numpy.concatenate(timeAxis, thisTime)
 
     for idx in dims[1:]:
-        if lstFID[0][variable][:, idx[0], idx[1]].mask.all() = True: # assume same nodata everywhere
+        if lstFID[0][variable][:, idx[0], idx[1]].mask.all() == True: # assume same nodata everywhere
             continue
 
         # get data from all files for this position idx
@@ -123,6 +123,7 @@ if __name__=="__main__":
     tmpdir = None
     outdir = None
     modelListFile=None
+    logFile='{0}.log'.format(__file__)
 
     ii = 1
     while ii < len(sys.argv):
