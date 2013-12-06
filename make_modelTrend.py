@@ -46,7 +46,6 @@ def getListFromFile(infile):
         with open(infile, "r") as f:
             for textLine in f:
                 thisStr = textLine.replace(" ", "").replace('\n','')
-                print thisStr
                 if not (thisStr==""):
                     modelList.append( thisStr )
     except IOError as e:
@@ -58,7 +57,8 @@ def getListFromFile(infile):
 # __________________________
 # returns basefilenames, in alphabetical order
 def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
-    searchString = ''.join([ '{0}_'.format(s) for s in [a,b,c,d] if s != '']) + '*.nc'
+
+    searchString = ''.join([ '{0}_'.format(s) for s in [variable, frequency, iModel, trendType, rip] if s != '']) + '*.nc'
 
     # get file list, non empty, sorted alphabetically
     listFile = [ os.path.basename(f) for f in glob.glob( os.path.join(indir, searchString) ) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
@@ -133,7 +133,7 @@ if __name__=="__main__":
     while ii < len(sys.argv):
         arg = sys.argv[ii].lower()
         
-        if arg == '-path|-p':
+        if arg == '-path' or arg=='-p':
             ii = ii + 1
             indir = sys.argv[ii]
         elif arg == '-outdir' or arg=='-o':
@@ -168,6 +168,8 @@ if __name__=="__main__":
     # process input parameter
     if variable is None:
         exitMessage('Missing a variable name to process. Exit(1).', 1)
+    if indir is None:
+        exitMessage('Missing an input data path. Exit(5)',5)
     if outdir is None:
         exitMessage('Missing an output directory. Exit(2).',2)
     if modelListFile is None:
