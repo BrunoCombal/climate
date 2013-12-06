@@ -61,13 +61,14 @@ def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
     searchString = ''.join([ '{0}_'.format(s) for s in [variable, frequency, iModel, trendType, rip] if s != '']) + '*.nc'
 
     # get file list, non empty, sorted alphabetically
-    listFile = [ os.path.basename(f) for f in glob.glob( os.path.join(indir, searchString) ) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
+    listFile = [ os.path.basename(f) for f in glob.glob( os.path.join(indir, searchString) ) if (os.stat(f).st_size) ]
 
     if len(listFile)==0: return None
     return sorted(listFile)
 # ___________________________
 # for this version, assume the list is sorted in chronological order
 def do_trend(indir, fileList, variable, outfile):
+
     # open all files
     lstFID = []
     for ii in fileList:
@@ -89,11 +90,15 @@ def do_trend(indir, fileList, variable, outfile):
 
     # create time axis
     timeAxis=[]
-    for ifid in lstFid:
-        thisTime = [ t.year + (t.month-1)/12 for t in ifid['time'].asComponentTime() ]
-        timeAxis = numpy.concatenate(timeAxis, thisTime)
+    for ifid in lstFID:
+        thisTime = [ t.year + (t.month-1.0)/12.0 for t in ifid['time'].asComponentTime() ]
+        timeAxis = numpy.concatenate( (timeAxis, thisTime), axis=0)
+    print 'timeAxis=',timeAxis
 
-    for idx in dims[1:]:
+    print dims
+    print dims[1:]
+    for idx in numpy.ndindex(dims[1:]):
+        print idx
         if lstFID[0][variable][:, idx[0], idx[1]].mask.all() == True: # assume same nodata everywhere
             continue
 
@@ -196,6 +201,6 @@ if __name__=="__main__":
         # sort them in chronological order
         # call the trend estimator
         outfile='{0}/trend_{1}_{2}_{3}_{4}_{5}.nc'.format(outdir, variable, frequency, iModel, trendType, rip)
-        do_trend(indir, files, variable, outfile)
+        do_trend(indir, lstFiles, variable, outfile)
 
 # end of file
