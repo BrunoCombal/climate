@@ -126,11 +126,11 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
    # create trend coefficient matrix
     coeff = numpy.zeros( dims[1:]+(degree + 1,) ) + 1.e20
 
-
     if annualAVG:
-        thisLogger.info('Annual average computed before calling polyfit.')
+        thisLogger.info('Annual average computed before calling polyfit (deg={0}).'.format(degree))
     else:
-        thisLogger.infor('NO annual average, raw data used for calling polyfit.')
+        thisLogger.infor('NO annual average, raw data used for calling polyfit (deg={0}).'.format(degree))
+
     for idx in lstIdx:
         if wtk[idx] == True:
             continue
@@ -148,7 +148,7 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
             coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, degree)
         else:
             coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, thisData, degree)
-        print idx, coeff[idx[0], idx[1],:]
+        #print idx, coeff[idx[0], idx[1],:]
 
         del thisData
         del data
