@@ -20,7 +20,7 @@ import logging.handlers
 # ____________________________
 def usage():
     textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0).\nDevelopped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
-    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE]'
+    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE] [-degree|deg DEGREEPOLYFIT]'
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
@@ -78,7 +78,7 @@ def yearlyAvg(timeAxis, dataIn):
     return (timeOut, dataOut)
 # ___________________________
 # for this version, assume the list is sorted in chronological order
-def do_trend(indir, fileList, variable, outfile):
+def do_trend(indir, fileList, variable, outfile, degree):
 
     # open all files
     lstFID = []
@@ -116,7 +116,7 @@ def do_trend(indir, fileList, variable, outfile):
     lstIdx = numpy.ndindex(dims[1:])
 
    # create trend coefficient matrix
-    coeff = numpy.zeros( dims[1:]+(3,) ) + 1.e20
+    coeff = numpy.zeros( dims[1:]+(degree + 1,) ) + 1.e20
 
     for idx in lstIdx:
         if wtk[idx] == True:
@@ -131,7 +131,7 @@ def do_trend(indir, fileList, variable, outfile):
                 data = numpy.concatenate(data, thisData)
 
         (newTime, yearlyData) = yearlyAvg(timeAxis, thisData)
-        coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, 2)
+        coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, degree)
         print idx, coeff[idx[0], idx[1],:]
 
         del thisData
@@ -162,6 +162,7 @@ if __name__=="__main__":
     outdir = None
     modelListFile=None
     logFile='{0}.log'.format(__file__)
+    degree=1
 
     ii = 1
     while ii < len(sys.argv):
@@ -179,6 +180,9 @@ if __name__=="__main__":
         elif arg == '-v':
             ii = ii + 1
             variable = sys.argv[ii]
+        elif arg=='-deg' or arg=='-degree':
+            ii = ii + 1
+            degree = int(sys.argv[ii])
         elif arg == '-modellist':
             ii = ii + 1
             modelListFile = sys.argv[ii]
@@ -230,6 +234,6 @@ if __name__=="__main__":
         # sort them in chronological order
         # call the trend estimator
         outfile='{0}/trend_{1}_{2}_{3}_{4}_{5}.nc'.format(outdir, variable, frequency, iModel, trendType, rip)
-        do_trend(indir, lstFiles, variable, outfile)
+        do_trend(indir, lstFiles, variable, outfile, degree)
 
 # end of file
