@@ -66,6 +66,17 @@ def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
     if len(listFile)==0: return None
     return sorted(listFile)
 # ___________________________
+# average a series by steps of 12
+# only keep complete years
+def yearlyAvg(timeAxis, dataIn):
+    dataOut=[]
+    timeOut=[]
+    for iyear in range(0, len(dataIn), 12):
+        dataOut.append(numpy.average( dataIn[iyear:iyear+12] ))
+        timeOut.append(numpy.average( timeAxis[iyear:iyear+12] ))
+
+    return (timeOut, dataOut)
+# ___________________________
 # for this version, assume the list is sorted in chronological order
 def do_trend(indir, fileList, variable, outfile):
 
@@ -85,30 +96,43 @@ def do_trend(indir, fileList, variable, outfile):
     # get data dimensions first, assumin all equal
     dims=lstFID[0][variable].shape # assume t, z,y,x or t, y,x
     
-    # create trend coefficient matrix
-    coeff = numpy.ma.masked_all( dims[1:]+(3,) )
-
-    # create time axis
+     # create time axis
     timeAxis=[]
     for ifid in lstFID:
         thisTime = [ t.year + (t.month-1.0)/12.0 for t in ifid['time'].asComponentTime() ]
         timeAxis = numpy.concatenate( (timeAxis, thisTime), axis=0)
     print 'timeAxis=',timeAxis
 
-    print dims
-    print dims[1:]
-    for idx in numpy.ndindex(dims[1:]):
-        print idx
-        if lstFID[0][variable][:, idx[0], idx[1]].mask.all() == True: # assume same nodata everywhere
+    # Some datasets do not correctly encode masks: quick fix=if no change, then mask
+    lstTime=lstFID[0][variable].getTime().asComponentTime()
+    wtk = cdms2.MV2.array(lstFID[0][variable].subRegion(time=lstTime[0])).mask.squeeze()
+    # if the mask has only 'True' values, let's compute the mask
+
+    if wtk.all():
+        thisLogger.info('Mask not found in the dataset, computing mask from the time series. Continue.')
+        # 3 consecutives values should be enough
+        test = numpy.array(lstFID[0][variable].subRegion(time=(lstTime[0], lstTime[2],'cc') ))
+        wtk = ( numpy.max(test, axis=0) - numpy.min(test.min, axis=0) ) < 0.00001
+    lstIdx = numpy.ndindex(dims[1:])
+
+   # create trend coefficient matrix
+    coeff = numpy.zeros( dims[1:]+(3,) ) + 1.e20
+
+    for idx in lstIdx:
+        if wtk[idx] == True:
             continue
-
         # get data from all files for this position idx
-        data=[]
+        data=None
         for ifid in lstFID:
-            thisData = numpy.ravel(ifid[variable][:, idx])
-        data.append(thisData)
+            thisData = numpy.array(ifid[variable][:, idx[0], idx[1]]).ravel()
+            if data is None:
+                data = thisData.copy()
+            else:
+                data = numpy.concatenate(data, thisData)
 
-        coeff[idx] = numpy.polyfit(timeAxis, data, 2)
+        (newTime, yearlyData) = yearlyAvg(timeAxis, thisData)
+        coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, 2)
+        print idx, coeff[idx[0], idx[1],:]
 
         del thisData
         del data
@@ -121,6 +145,11 @@ def do_trend(indir, fileList, variable, outfile):
 
     # close fid
     for ifid in lstFid: ifid.close()
+
+    # some cleaning: python is not very good with collections
+    del lstIdx
+    del wtk
+    gc.collect()
 # ___________________________
 if __name__=="__main__":
 
