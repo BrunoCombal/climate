@@ -93,8 +93,10 @@ function trends(){
     trendType=$2
     indir='/data/cmip5/rcp/tos_controlrun'
     modelList=${indir}/lst_${variable}_ctrlrun_${trendType}.txt
+    outdir=/data/tmp/new_algo/control_run/${tos}_${trendType}
+    degree=1
 
-    ./make_modelTrend.py -o test -p $indir -v ${variable} -trendType ${trendType} -modellist ${modeList}
+    ./make_modelTrend.py -deg 1 -o ${outdir} -p $indir -v ${variable} -trendType ${trendType} -modellist ${modelList} -annualAVG yes
 }
 
 # ___________________________________________
