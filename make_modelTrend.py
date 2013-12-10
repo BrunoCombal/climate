@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# \author Bruno Combal, IOC-UNESCO
+# \date December 2013
+# many thanks to Mark Carson (ZMAW) for advising me on the computation and usage of control run with CMIP5 datasets.
+
 # to run the script with the correct version of uvcdat:
 #  source /usr/local/uvcdat/1.4.0/bin/setup_runtime.sh
 
