@@ -2,6 +2,10 @@
 # \author Bruno Combal
 # \date November 2013
 
+# a series of function to call the different cliamte processing
+# caution: this script is giving as an example, there is no input parameters tests.
+# Read carefuly before using.
+
 # \brief Computes tos ensemble means
 # $1 decade
 # $2 rcp85, rcp45
@@ -30,22 +34,22 @@ function tosEM(){
     dStart=${decade}
     dEnd=$((decade + 3))
     echo "Processing ensembleMean from "${dStart}" to "${dEnd}
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
 
     dStart=$((dEnd + 1))
     dEnd=$((dStart + 3))
     echo "Processing ensembleMean from "${dStart}" to "${dEnd}
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
 
     dStart=$((dEnd + 1))
     dEnd=$((decade + 9))
     echo "Processing ensembleMean from "${dStart}" to "${dEnd}
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear${dEnd} -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
     
     # produce some extra month for DHM 4 months rolling window
     dStart=$((decade - 1))
     dEnd=$((decade - 1))
-    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -monthlist '10,11,12' -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -monthlist '10,11,12' -rcp ${rcp}
 }
 
 # \brief Computes thetao ensemble means
@@ -58,7 +62,7 @@ function thetaoEM(){
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-    ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 1 -maxVar 400 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp}
 
 }
 
@@ -80,10 +84,28 @@ function dhm(){
 
 }
 
+# ___________________________________________
+# \brief computes model trends
+# $1: variable, eg. 'tos'
+# $2: trendType, eg. 'esm'
+function trends(){
+    variable=$1
+    trendType=$2
+    indir='/data/cmip5/rcp/tos_controlrun'
+    modelList=${indir}/lst_${variable}_ctrlrun_${trendType}.txt
+
+    ./make_modelTrend.py -o test -p $indir -v ${variable} -trendType ${trendType} -modellist ${modeList}
+}
+
+# ___________________________________________
+# \brief Main
+# use thise section to call the functions
+
 # uv-cdat library must first be sourced
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
+trends 'tos' 'esm'
 
-tosEM 2050 rcp85
-dhm 2050 rcp85
+#tosEM 2030 rcp85
+#dhm 2030 rcp85
 #thetaoEM
