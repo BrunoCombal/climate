@@ -20,7 +20,9 @@ import logging.handlers
 # ____________________________
 def usage():
     textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0).\nDevelopped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
-    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE] [-degree|deg DEGREEPOLYFIT]'
+    textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE] [-degree|deg DEGREEPOLYFIT] [-annualAvg ANNUALAVG]'
+    textUsage=textUsage+'\tDEGREEPOLYFIT: degree of the polynom to fit; 1 for linear, 2 for quadratic, etc.'
+    textUsage=textUsage+'\tANNUALAVG: False/True computes the annual average from the time series before calling polyfit'
     return textUsage
 # ____________________________
 def exitMessage(msg, exitCode='1'):
@@ -39,6 +41,12 @@ def getTrendType(argString):
     elif argString == 'pi' or argString == 'pictrl' or argString == 'picontrol':
         return 'piControl'
     else: return ''
+# __________________________
+def getAnnualAvg(aa):
+    if aa == 'none' or aa == 'false' or aa == 'no' or aa=='0':
+        return False
+    else: 
+        return True
 # __________________________
 def getListFromFile(infile):
     modelList=[]
@@ -78,7 +86,7 @@ def yearlyAvg(timeAxis, dataIn):
     return (timeOut, dataOut)
 # ___________________________
 # for this version, assume the list is sorted in chronological order
-def do_trend(indir, fileList, variable, outfile, degree):
+def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
     # open all files
     lstFID = []
@@ -118,6 +126,11 @@ def do_trend(indir, fileList, variable, outfile, degree):
    # create trend coefficient matrix
     coeff = numpy.zeros( dims[1:]+(degree + 1,) ) + 1.e20
 
+
+    if annualAVG:
+        thisLogger.info('Annual average computed before calling polyfit.')
+    else:
+        thisLogger.infor('NO annual average, raw data used for calling polyfit.')
     for idx in lstIdx:
         if wtk[idx] == True:
             continue
@@ -130,8 +143,11 @@ def do_trend(indir, fileList, variable, outfile, degree):
             else:
                 data = numpy.concatenate(data, thisData)
 
-        (newTime, yearlyData) = yearlyAvg(timeAxis, thisData)
-        coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, degree)
+        if annualAVG:
+            (newTime, yearlyData) = yearlyAvg(timeAxis, thisData)
+            coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, degree)
+        else:
+            coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, thisData, degree)
         print idx, coeff[idx[0], idx[1],:]
 
         del thisData
@@ -163,6 +179,7 @@ if __name__=="__main__":
     modelListFile=None
     logFile='{0}.log'.format(__file__)
     degree=1
+    annualAVG=False
 
     ii = 1
     while ii < len(sys.argv):
@@ -183,6 +200,9 @@ if __name__=="__main__":
         elif arg=='-deg' or arg=='-degree':
             ii = ii + 1
             degree = int(sys.argv[ii])
+        elif arg=='-annualavg':
+            ii=ii+1
+            annualAVG=getAnnualAvg(sys.argv[ii].lower())
         elif arg == '-modellist':
             ii = ii + 1
             modelListFile = sys.argv[ii]
@@ -234,6 +254,6 @@ if __name__=="__main__":
         # sort them in chronological order
         # call the trend estimator
         outfile='{0}/trend_{1}_{2}_{3}_{4}_{5}.nc'.format(outdir, variable, frequency, iModel, trendType, rip)
-        do_trend(indir, lstFiles, variable, outfile, degree)
+        do_trend(indir, lstFiles, variable, outfile, degree, annualAVG)
 
 # end of file
