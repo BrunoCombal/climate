@@ -90,6 +90,8 @@ def yearlyAvg(timeAxis, dataIn):
     return (timeOut, dataOut)
 # ___________________________
 # for this version, assume the list is sorted in chronological order
+# the total amount of data won't fit in memory. Process by line
+# Pyhton shows memory management issues: force deleting arrays and call garbage collector in loops
 def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
     # open all files
@@ -104,8 +106,6 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     # if no file was open, return None
     if len(lstFID)==0: return (None,None)
 
-    # the total amount of data won't fit in memory. Process by line
-    # get data dimensions first, assumin all equal
     dims=lstFID[0][variable].shape # assume t, z,y,x or t, y,x
     
      # create time axis
@@ -119,7 +119,6 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     lstTime=lstFID[0][variable].getTime().asComponentTime()
     wtk = cdms2.MV2.array(lstFID[0][variable].subRegion(time=lstTime[0])).mask.squeeze()
     # if the mask has only 'True' values, let's compute the mask
-
     if wtk.all():
         thisLogger.info('Mask not found in the dataset, computing mask from the time series. Continue.')
         # 3 consecutives values should be enough
@@ -160,11 +159,11 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
     # save result
     outfid=cdms2.open(outfile, 'w')
-    outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFid[0][variable].getGrid())
+    outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFID[0][variable].getGrid())
     outfid.close()
 
     # close fid
-    for ifid in lstFid: ifid.close()
+    for ifid in lstFID: ifid.close()
 
     # some cleaning: python is not very good with collections
     del lstIdx
