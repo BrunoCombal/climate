@@ -147,8 +147,9 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
                 data = numpy.concatenate(data, thisData)
 
         if annualAVG:
-            (newTime, yearlyData) = yearlyAvg(timeAxis, thisData)
-            coeff[idx[0], idx[1],:] = numpy.polyfit(newTime, yearlyData, degree)
+            (timeAxis, yearlyData) = yearlyAvg(timeAxis, thisData)
+            coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, yearlyData, degree)
+            del yearlyData
         else:
             coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, thisData, degree)
         #print idx, coeff[idx[0], idx[1],:]
@@ -160,6 +161,9 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     # save result
     outfid=cdms2.open(outfile, 'w')
     outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFID[0][variable].getGrid())
+    outfid.write(outvar)
+    outtime=cdms2.createVariable(timeAxis, id='timeAxis')
+    outfid.write(outtime)
     outfid.close()
 
     # close fid
