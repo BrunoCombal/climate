@@ -94,6 +94,8 @@ def yearlyAvg(timeAxis, dataIn):
 # Pyhton shows memory management issues: force deleting arrays and call garbage collector in loops
 def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
+    newTimeAxis=None
+
     # open all files
     lstFID = []
     for ii in fileList:
@@ -147,9 +149,8 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
                 data = numpy.concatenate(data, thisData)
 
         if annualAVG:
-            (timeAxis, yearlyData) = yearlyAvg(timeAxis, thisData)
-            coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, yearlyData, degree)
-            del yearlyData
+            (newTimeAxis, yearlyData) = yearlyAvg(timeAxis, thisData)
+            coeff[idx[0], idx[1],:] = numpy.polyfit(newTimeAxis, yearlyData, degree)
         else:
             coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, thisData, degree)
         #print idx, coeff[idx[0], idx[1],:]
@@ -162,7 +163,10 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     outfid=cdms2.open(outfile, 'w')
     outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFID[0][variable].getGrid())
     outfid.write(outvar)
-    outtime=cdms2.createVariable(timeAxis, id='timeAxis')
+    if newTimeAxis is None:
+        outtime=cdms2.createVariable(timeAxis, id='timeAxis')
+    else:
+        outtime=cdms2.createVariable(newTimeAxis, id='timeAxis')
     outfid.write(outtime)
     outfid.close()
 
