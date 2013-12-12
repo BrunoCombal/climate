@@ -24,6 +24,7 @@ import logging.handlers
 # ____________________________
 def usage():
     textUsage='make_modelTrend.py.\n\tComputes models linear trend (y = a . time + y0).\nDevelopped in first place for estimating variables projections divergence from control runs (ideally, a should be null).\n'
+    textUsage='The output is an array of polynomial coefficients (DEGREEPOLYFIT+1 coefficients) for each grid point. The time step used for interpolating is given in year(float): year+(month-1)/12.0, starts counting at 1'
     textUsage='SYNOPSIS:\n\tmake_modelTrend.py -path|-p INPATH -outdir|-o OUTPATH [-tmpdir WRKPATH] -v VARIABLE -trendType TRENDTYPE [-rip RIP] [-log LOGFILE] [-degree|deg DEGREEPOLYFIT] [-annualAvg ANNUALAVG]'
     textUsage=textUsage+'\tDEGREEPOLYFIT: degree of the polynom to fit; 1 for linear, 2 for quadratic, etc.'
     textUsage=textUsage+'\tANNUALAVG: False/True computes the annual average from the time series before calling polyfit'
@@ -112,10 +113,12 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     
      # create time axis
     timeAxis=[]
+    timeAxisOrg=[]
     for ifid in lstFID:
         thisTime = [ t.year + (t.month-1.0)/12.0 for t in ifid['time'].asComponentTime() ]
+        thisTimeOrg = [ t.year*10000 + t.month*100 + t.day for t in ifid['time'].asComponentTime() ]
         timeAxis = numpy.concatenate( (timeAxis, thisTime), axis=0)
-    print 'timeAxis=',timeAxis
+        timeAxisOrg = numpy.concatenate( (timeAxisOrg, thisTimeOrg), axis=0)
 
     # Some datasets do not correctly encode masks: quick fix=if no change, then mask
     lstTime=lstFID[0][variable].getTime().asComponentTime()
@@ -134,8 +137,9 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     if annualAVG:
         thisLogger.info('Annual average computed before calling polyfit (deg={0}).'.format(degree))
     else:
-        thisLogger.infor('NO annual average, raw data used for calling polyfit (deg={0}).'.format(degree))
+        thisLogger.info('NO annual average, raw data used for calling polyfit (deg={0}).'.format(degree))
 
+    thisLogger.info('Iterating over {0}/{1} points.'.format(lstIdx.total, dims[1:].count))
     for idx in lstIdx:
         if wtk[idx] == True:
             continue
@@ -160,14 +164,19 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
         gc.collect()
 
     # save result
+    thisLogger.info('Saving results')
     outfid=cdms2.open(outfile, 'w')
-    outvar=cdms2.createVariable(coeff, id='coeff',grid=lstFID[0][variable].getGrid())
+
+    outvar=cdms2.createVariable(coeff, id='coeff')
     outfid.write(outvar)
     if newTimeAxis is None:
         outtime=cdms2.createVariable(timeAxis, id='timeAxis')
     else:
         outtime=cdms2.createVariable(newTimeAxis, id='timeAxis')
     outfid.write(outtime)
+
+    outtimeorg=cdms2.createVariable(timeAxisOrg, id='timeAxisOrg')
+    outfid.write(outtimeorg)
     outfid.close()
 
     # close fid
@@ -228,10 +237,13 @@ if __name__=="__main__":
             logFile = sys.argv[ii]
         ii = ii + 1
 
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    # logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     thisLogger = logging.getLogger('MyLogger')
     thisLogger.setLevel(logging.DEBUG)
     handler = logging.handlers.RotatingFileHandler(logFile, maxBytes=1024*500, backupCount=5)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(formatter)
     thisLogger.addHandler(handler)
 
     # process input parameter
