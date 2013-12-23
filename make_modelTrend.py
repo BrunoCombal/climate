@@ -150,7 +150,13 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
             if data is None:
                 data = thisData.copy()
             else:
-                data = numpy.concatenate(data, thisData)
+                try:
+                    data = numpy.concatenate( (data, thisData), axis=0)
+                except Exception, e:
+                    print 'thisData.shape: {0}'.format(thisData.shape)
+                    print 'data.shape: {0}'.format(data.shape)
+                    print 'netcdf variable {0} shape: {1}'.format(variable, ifid[variable].shape)
+                    exitMessage('Unexpected error while processing file in the series {0}, with error {1}. Exit(101).'.format(fileList[0],e), 101)
 
         if annualAVG:
             (newTimeAxis, yearlyData) = yearlyAvg(timeAxis, thisData)
