@@ -120,11 +120,15 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
         timeAxis = numpy.concatenate( (timeAxis, thisTime), axis=0)
         timeAxisOrg = numpy.concatenate( (timeAxisOrg, thisTimeOrg), axis=0)
 
-    # Some datasets do not correctly encode masks: quick fix=if no change, then mask
+    # Some datasets do not correctly encode masks: quick fix=if no change (along time dimension), then mask
     lstTime=lstFID[0][variable].getTime().asComponentTime()
     wtk = cdms2.MV2.array(lstFID[0][variable].subRegion(time=lstTime[0])).mask.squeeze()
+    redoMask = False
+    if wtk.all(): redoMask=True
+    if wtk is None: redoMask=True
+    if len(wtk)==0: redoMask=True
     # if the mask has only 'True' values, let's compute the mask
-    if wtk.all():
+    if redoMask:
         thisLogger.info('Mask not found in the dataset, computing mask from the time series. Continue.')
         # 3 consecutives values should be enough
         test = numpy.array(lstFID[0][variable].subRegion(time=(lstTime[0], lstTime[2],'cc') ))
@@ -139,10 +143,10 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     else:
         thisLogger.info('NO annual average, raw data used for calling polyfit (deg={0}).'.format(degree))
 
-    thisLogger.info('Iterating over {0}/{1} points.'.format(lstIdx.total, dims[1:].count))
+    thisLogger.info('Iterating over {0}/{1} points.'.format(lstIdx.total, len(dims[1:]) ))
     for idx in lstIdx:
         if wtk[idx] == True:
-            continue
+            continue # if this pixel is in the mask, jump to the next iteration
         # get data from all files for this position idx
         data=None
         for ifid in lstFID:
@@ -252,6 +256,8 @@ if __name__=="__main__":
     handler.setFormatter(formatter)
     thisLogger.addHandler(handler)
 
+    thisLogger.info('============ Starting logger ===========')
+
     # process input parameter
     if variable is None:
         exitMessage('Missing a variable name to process. Exit(1).', 1)
@@ -284,5 +290,7 @@ if __name__=="__main__":
         # call the trend estimator
         outfile='{0}/trend_{1}_{2}_{3}_{4}_{5}.nc'.format(outdir, variable, frequency, iModel, trendType, rip)
         do_trend(indir, lstFiles, variable, outfile, degree, annualAVG)
+
+    thisLogger.info('========== end of processing ==========')
 
 # end of file
