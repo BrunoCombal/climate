@@ -86,7 +86,7 @@ def yearlyAvg(timeAxis, dataIn):
     timeOut=[]
     for iyear in range(0, len(dataIn), 12):
         dataOut.append(numpy.average( dataIn[iyear:iyear+12] ))
-        timeOut.append(numpy.average( timeAxis[iyear:iyear+12] ))
+        timeOut.append(numpy.average( timeAxis[iyear+6] ))
 
     return (timeOut, dataOut)
 # ___________________________
@@ -99,6 +99,7 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
     # open all files
     lstFID = []
+    print 'fileList ',fileList
     for ii in fileList:
         try:
             fid = cdms2.open(os.path.join(indir, ii), 'r')
@@ -112,6 +113,8 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     dims=lstFID[0][variable].shape # assume t, z,y,x or t, y,x
     
      # create time axis
+    # timeAxis: year counts (on floating point), starting at 1
+    # timeAxisOrg: original time values
     timeAxis=[]
     timeAxisOrg=[]
     for ifid in lstFID:
@@ -124,15 +127,16 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
     lstTime=lstFID[0][variable].getTime().asComponentTime()
     wtk = cdms2.MV2.array(lstFID[0][variable].subRegion(time=lstTime[0])).mask.squeeze()
     redoMask = False
+    
     if wtk.all(): redoMask=True
     if wtk is None: redoMask=True
-    if len(wtk)==0: redoMask=True
+    if wtk.ndim==0: redoMask=True
     # if the mask has only 'True' values, let's compute the mask
     if redoMask:
         thisLogger.info('Mask not found in the dataset, computing mask from the time series. Continue.')
         # 3 consecutives values should be enough
         test = numpy.array(lstFID[0][variable].subRegion(time=(lstTime[0], lstTime[2],'cc') ))
-        wtk = ( numpy.max(test, axis=0) - numpy.min(test.min, axis=0) ) < 0.00001
+        wtk = ( numpy.max(test, axis=0) - numpy.min(test, axis=0) ) < 0.00001
     lstIdx = numpy.ndindex(dims[1:])
 
    # create trend coefficient matrix
@@ -149,7 +153,7 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
             continue # if this pixel is in the mask, jump to the next iteration
         # get data from all files for this position idx
         data=None
-        for ifid in lstFID:
+        for ifid in lstFID: # concatenate thisData into data
             thisData = numpy.array(ifid[variable][:, idx[0], idx[1]]).ravel()
             if data is None:
                 data = thisData.copy()
@@ -163,10 +167,12 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
                     exitMessage('Unexpected error while processing file in the series {0}, with error {1}. Exit(101).'.format(fileList[0],e), 101)
 
         if annualAVG:
-            (newTimeAxis, yearlyData) = yearlyAvg(timeAxis, thisData)
+            thisLogger.info('Computing yearly averages, from data.shape: {0} and len(timeAxis): {1}'.format(data.shape, len(timeAxis)))
+            (newTimeAxis, yearlyData) = yearlyAvg(timeAxis, data)
+            thisLogger.debug('yearly average produced len(newTimeAxis): {0} and len(yearlyData): {1}.'.format( len(newTimeAxis), len(yearlyData)))
             coeff[idx[0], idx[1],:] = numpy.polyfit(newTimeAxis, yearlyData, degree)
         else:
-            coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, thisData, degree)
+            coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, data, degree)
         #print idx, coeff[idx[0], idx[1],:]
 
         del thisData
@@ -284,6 +290,7 @@ if __name__=="__main__":
     listModels = getListFromFile(modelListFile)
     for iModel in listModels:
         # get the list of input files
+        thisLogger.info( 'processing model {0}'.format(iModel))
         lstFiles = selectModelFiles(indir, variable, frequency, iModel, trendType, rip)
         if lstFiles is None: continue
         # sort them in chronological order
