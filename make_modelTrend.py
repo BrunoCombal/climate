@@ -99,7 +99,6 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
 
     # open all files
     lstFID = []
-    print 'fileList ',fileList
     for ii in fileList:
         try:
             fid = cdms2.open(os.path.join(indir, ii), 'r')
@@ -161,9 +160,9 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
                 try:
                     data = numpy.concatenate( (data, thisData), axis=0)
                 except Exception, e:
-                    print 'thisData.shape: {0}'.format(thisData.shape)
-                    print 'data.shape: {0}'.format(data.shape)
-                    print 'netcdf variable {0} shape: {1}'.format(variable, ifid[variable].shape)
+                    thisLogger.critical( 'thisData.shape: {0}'.format(thisData.shape) )
+                    thisLogger.critical( 'data.shape: {0}'.format(data.shape) )
+                    thisLogger.critical( 'netcdf variable {0} shape: {1}'.format(variable, ifid[variable].shape) )
                     exitMessage('Unexpected error while processing file in the series {0}, with error {1}. Exit(101).'.format(fileList[0],e), 101)
 
         if annualAVG:
@@ -173,7 +172,6 @@ def do_trend(indir, fileList, variable, outfile, degree, annualAVG):
             coeff[idx[0], idx[1],:] = numpy.polyfit(newTimeAxis, yearlyData, degree)
         else:
             coeff[idx[0], idx[1],:] = numpy.polyfit(timeAxis, data, degree)
-        #print idx, coeff[idx[0], idx[1],:]
 
         del thisData
         del data
