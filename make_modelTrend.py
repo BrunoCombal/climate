@@ -84,8 +84,12 @@ def selectModelFiles(indir,variable, frequency, iModel, trendType, rip):
 def yearlyAvg(timeAxis, dataIn):
     dataOut=[]
     timeOut=[]
-    for iyear in range(0, len(dataIn), 12):
+    for iyear in range(0, len(dataIn), 12): # assume monthly data
         dataOut.append(numpy.average( dataIn[iyear:iyear+12] ))
+        # in principle, one should save the middle of the year as reference date.
+        # but one can't be sure that timeAxis[iyear + 6 ] exist (the series can stop before)
+        # in this case, save timeAxis[iyear]: i.e. beginning of the year
+        # timeOut.append(numpy.average( timeAxis[iyear+6] ))
         timeOut.append(numpy.average( timeAxis[iyear+6] ))
 
     return (timeOut, dataOut)
