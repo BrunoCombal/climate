@@ -6,9 +6,58 @@
 # caution: this script is giving as an example, there is no input parameters tests.
 # Read carefuly before using.
 
+# _________________________________
 # \brief Computes tos ensemble means
 # $1 decade
 # $2 rcp85, rcp45
+function omlmaxEM(){
+    decade=$1
+    rcp=$2
+    var=omlmax
+
+    if [ ${rcp} = 'rcp85' ]; then
+	rcp=rcp85
+	indir=/datater/cmip5/rcp/rcp8.5/${var}/
+	model=${indir}/modellist_omlmax.txt
+    elif [ ${rcp} = 'rcp45' ]; then
+	rcp=rcp45
+	echo "rcp 4.5 has not been expected. Exit."
+	exit 1
+    else
+	echo "Function omlmaxEM: wrong input parameter '$2'="${rcp}". Exit(1)."
+	exit 1
+    fi
+
+    if [ ! -e ${model} ]; then
+	ls ${model}
+	echo "List of models does not exist ($model). Exit 2."
+	exit 2
+    fi
+
+    outdir=/datater/tmp/new_algo/${var}_${rcp}
+    tmpdir=/datater/tmp/new_algo/tmp_${var}_${rcp}
+    mkdir -p ${outdir}
+    mkdir -p ${tmpdir}
+    bindir=${HOME}/github/climate/
+
+    dStart=${decade}
+    dEnd=$((decade + 3))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
+
+    dStart=$((dEnd + 1))
+    dEnd=$((dStart + 3))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
+
+    dStart=$((dEnd + 1))
+    dEnd=$((decade + 9))
+    echo "Processing ensembleMean from "${dStart}" to "${dEnd}
+    ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
+
+}
+# ________________________________
+# \brief compute TOS ensemble mean  
 function tosEM(){
     decade=$1
     rcp=$2
@@ -52,6 +101,7 @@ function tosEM(){
     ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -monthlist '10,11,12' -rcp ${rcp}
 }
 
+# ____________________________________
 # \brief Computes thetao ensemble means
 function thetaoEM(){
     rcp=rcp85 #rcp45
@@ -92,7 +142,7 @@ function trends(){
     variable=$1
     trendType=$2
     indir='/data/cmip5/rcp/tos_controlrun'
-    modelList=${indir}/lst_${variable}_ctrlrun_${trendType}.txt
+    modelList=${indir}/lst_${variable}_ctrlrun_${trendType}_edited.txt
     outdir=/data/tmp/new_algo/control_run/${tos}_${trendType}
     degree=1
 
@@ -106,8 +156,12 @@ function trends(){
 # uv-cdat library must first be sourced
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
-trends 'tos' 'esm'
+#for ii in $(seq 2010 10 2080 )
+#do
+#    omlmaxEM 2010 rcp85
+#done
+#trends 'tos' 'esm'
 
-#tosEM 2030 rcp85
-#dhm 2030 rcp85
+tosEM 2030 rcp85
+dhm 2030 rcp85
 #thetaoEM
