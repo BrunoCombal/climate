@@ -1,4 +1,4 @@
-climate
+Climate
 =======
 
 Python and bash scripts to process climate projections data.
