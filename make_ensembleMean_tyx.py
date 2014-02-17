@@ -329,9 +329,10 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     # open all files
     listFID=[]
     thisLogger.debug('Averaging with files')
-    for ifile in lstInFile: 
-        listFID.append(cdms2.open(ifile, 'r'))
+    for ifile in lstInFile:
         thisLogger.debug(ifile)
+        listFID.append(cdms2.open(ifile, 'r'))
+        
     
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
@@ -529,6 +530,7 @@ if __name__=="__main__":
 
     processedFiles=None
 
+    # process models individually
     for thisModel in modelList:
         thisLogger.info('Model {0}'.format(thisModel))
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') )
@@ -546,16 +548,20 @@ if __name__=="__main__":
         processedFiles = agregateDict(processedFiles, thisModelFiles)
         gc.collect()
 
-    thisLogger.info( '>> Averaging models averages, for each date')
-    for idate in processedFiles: # iteration over keys
-        thisYear = int(idate[0:4])
-        thisMonth= int(idate[4:6])
-        thisLogger.info('>> Averaging date {0}'.format(idate))
-        listFiles = [x for x in flatten(processedFiles[idate])]
-        thisLogger.info('>> averaging files '.format(listFiles))
-        returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
+    # if needed process ensembles
+    if len(modelList)==1:
+        thisLogger.info('>>> 1 model in input: job finished after first averaging round.')
+    else:
+        thisLogger.info( '>>> Averaging models averages, for each date')
+        for idate in processedFiles: # iteration over keys
+            thisYear = int(idate[0:4])
+            thisMonth= int(idate[4:6])
+            thisLogger.info('>> Averaging date {0}'.format(idate))
+            listFiles = [x for x in flatten(processedFiles[idate])]
+            thisLogger.info('>> averaging files '.format(listFiles))
+            returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
 
-        gc.collect()
+            gc.collect()
 
 
 # end of file
