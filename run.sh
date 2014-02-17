@@ -156,12 +156,12 @@ function trends(){
 # uv-cdat library must first be sourced
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
-#for ii in $(seq 2010 10 2080 )
-#do
-#    omlmaxEM 2010 rcp85
-#done
+for ii in $(seq 2010 10 2080 )
+do
+    omlmaxEM $ii rcp85
+done
 #trends 'tos' 'esm'
 
-tosEM 2030 rcp85
-dhm 2030 rcp85
+#tosEM 2030 rcp85
+#dhm 2030 rcp85
 #thetaoEM
