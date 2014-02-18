@@ -230,7 +230,7 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
     gc.collect()
     return [accum, N, mini, maxi]
 # ___________________________
-def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, topLevel=0, bottomLevel=1000):
+def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, resolution, topLevel=0, bottomLevel=1000):
 
     createdFiles=[]
     nodata=1.e20
@@ -243,7 +243,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         thisLogger.info('Found no file to process, consider revising search pattern. Return.')
         return None
 
-    (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
+    (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid(resolution)
 
     for fileName in lstInFile:
         thisLogger.info('Regriding file: {0}'.format(fileName))
@@ -430,6 +430,7 @@ if __name__=="__main__":
     maxVar=1.e20
     topLevel=0
     bottomLevel=300
+    resolution=0.5
 
     ii = 1
     while ii < len(sys.argv):
@@ -477,6 +478,9 @@ if __name__=="__main__":
         elif arg=='-log':
             ii = ii + 1
             logFile = sys.argv[ii]
+        elif arg=='resolution':
+            ii = ii + 1
+            resolution=float(sys.argv[ii])
         ii = ii + 1
 
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -537,7 +541,7 @@ if __name__=="__main__":
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
         if regridFirst:
-            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear, topLevel, bottomLevel)
+            regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear, resolution, topLevel, bottomLevel)
         else:
             regridedFiles = lstInFile
 
