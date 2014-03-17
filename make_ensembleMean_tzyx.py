@@ -207,17 +207,7 @@ def autoMask(var, nodata):
     gc.collect()
     return var
 # ____________________________
-def updateCounters(accum, N, mini, maxi, FID, variable, thisYear, thisMonth, minVar, maxVar, nodata=1.e20):
-
-    if FID[variable].getTime is None:
-        data = numpy.array( ifile[variable]).ravel()
-    else:
-        thisTime = [ii for ii in FID[variable].getTime().asComponentTime() if (ii.year==thisYear and ii.month==thisMonth)]
-        if len(thisTime)==1:
-            numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel()
-        else:
-            thisLogger.critical('Found {2} date(s) matching year {0} month {1} in current file, should be 1. Exit(111).'.format(thisYear, thisMonth,len(thisTime)))
-            exitMessage('Found {2} date(s) matching year {0} month {1} in current file, should be 1. Exit(111)'.format(thisYear, thisMonth,len(thisTime)), 111)
+def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
     if data is None:
         return [accum, N, mini, maxi]
@@ -229,6 +219,11 @@ def updateCounters(accum, N, mini, maxi, FID, variable, thisYear, thisMonth, min
         N = numpy.zeros(dim) + nodata
         mini = data.copy()
         maxi = data.copy()
+
+    print 'data:',data.shape
+    print 'minmax:',minVar, maxVar
+    print 'accum:',accum.shape
+    print 'nodata:',nodata
 
     wtadd = (data >= minVar ) * (data < maxVar) * (accum < nodata) # add where not nodata
     wtreplace = (data >= minVar) * (data < maxVar) * (accum >= nodata) # replace if no data
@@ -289,15 +284,19 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         thisLogger.info('end time = {0}-{1:02}'.format(endTime[-1].year, endTime[-1].month))
 
         if thisFile[variable].getLevel() is None:
-            # some files do not have nodata set to 1.e20 (EC-EARTH), some have masked values set to something else (0 and 1.e20, for MRI): let's process our mask by identifying unchanged values
+            # some files do not have nodata set to 1.e20 (EC-EARTH), some have masked values set to something else (0 and 1.e20, for MRI):
+            # let's process our mask by identifying unchanged values
             tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
             data = autoMask(tmp, nodata)
             del tmp
             gc.collect()
         else:
             verticalGrid = make_levels()
-            topLevel = levelAxis.min()
-            bottomLevel = levelAxis.max()
+#            print dir(verticalGrid)
+#            print verticalGrid.getBounds()
+            print verticalGrid.getBounds().min() , verticalGrid.getBounds().max()
+            topLevel = verticalGrid.getBounds().min()
+            bottomLevel = verticalGrid.getBounds().max()
             if thisFile[variable].getMissing() is None:
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
                 data = autoMask(tmp, nodata)
@@ -368,18 +367,27 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
             units=None
             for ifile in listFID:
 
-                if refGrid is None: 
-                    refGrid = ifile[variable].getGrid()
-                    # axis=ifile[variable].getAxisList(omit='time')
-                    if ifile[variable].getTime is None:
-                        dims=numpy.squeeze(ifile[variable]).shape
-                    else:
-                        dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
+                if ifile[variable].getTime() is None: # no time reference
+                    if refGrid is None: 
+                        refGrid = ifile[variable].getGrid()
+                        # axis=ifile[variable].getAxisList(omit='time')
+                        if ifile[variable].getTime is None:
+                            dims=numpy.squeeze(ifile[variable]).shape
+                            [accumVar, accumN, mini, maxi] = updateCounters( accumVar, accumN, mini, maxi,
+                                                                             numpy.array(ifile[variable]).ravel(),
+                                                                             minVar, maxVar, nodata)
+                else: # we can do some time slice
+                    thisTime = [ii for ii in ifile[variable].getTime().asComponentTime() if (ii.year==iyear and ii.month==imonth)] 
+                    if len(thisTime)==1:
+                        if refGrid is None:
+                            refGrid = ifile[variable].getGrid()
+                            dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
+                            [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
+                                                                           numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
+                                                                           minVar, maxVar, nodata )
                     units= ifile[variable].units
 
-                [accumVar, accumN, mini, maxi] = updateCounters( accumVar, accumN, mini, maxi,
-                                                                 ifile, variable, iyear, imonth,
-                                                                 minVar, maxVar, nodata)
+                
 
             # compute average
             # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
@@ -396,7 +404,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                     thisLogger.info('Computing std: to be implemented')
 
                 # create and save variables
-                meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
+                meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable), fill_value=nodata, attributes=dict(long_name='mean', units=units) )
                 meanVar.setGrid(refGrid)
 
                 counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
