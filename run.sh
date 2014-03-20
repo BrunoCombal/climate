@@ -112,7 +112,7 @@ function thetaoEM(){
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
     bindir='./'
 
-    ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp}
+    ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp} -resolution 1
 
 }
 
@@ -156,12 +156,12 @@ function trends(){
 # uv-cdat library must first be sourced
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
-for ii in $(seq 2010 10 2080 )
-do
-    omlmaxEM $ii rcp85
-done
+#for ii in $(seq 2010 10 2080 )
+#do
+#    omlmaxEM $ii rcp85
+#done
 #trends 'tos' 'esm'
 
-#tosEM 2030 rcp85
-#dhm 2030 rcp85
-#thetaoEM
+#tosEM 2040 rcp85
+#dhm 2040 rcp85
+thetaoEM
