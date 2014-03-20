@@ -220,11 +220,6 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
         mini = data.copy()
         maxi = data.copy()
 
-    print 'data:',data.shape
-    print 'minmax:',minVar, maxVar
-    print 'accum:',accum.shape
-    print 'nodata:',nodata
-
     wtadd = (data >= minVar ) * (data < maxVar) * (accum < nodata) # add where not nodata
     wtreplace = (data >= minVar) * (data < maxVar) * (accum >= nodata) # replace if no data
     wmax = (data >= maxi) * (data < nodata) * (data >= minVar) * (data < maxVar)
