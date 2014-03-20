@@ -90,7 +90,7 @@ def yearlyAvg(timeAxis, dataIn):
         # but one can't be sure that timeAxis[iyear + 6 ] exist (the series can stop before)
         # in this case, save timeAxis[iyear]: i.e. beginning of the year
         # timeOut.append(numpy.average( timeAxis[iyear+6] ))
-        timeOut.append(numpy.average( timeAxis[iyear+6] ))
+        timeOut.append(numpy.average( timeAxis[iyear] ))
 
     return (timeOut, dataOut)
 # ___________________________
@@ -290,10 +290,12 @@ if __name__=="__main__":
 
     # for each model
     listModels = getListFromFile(modelListFile)
+
     for iModel in listModels:
         # get the list of input files
         thisLogger.info( 'processing model {0}'.format(iModel))
         lstFiles = selectModelFiles(indir, variable, frequency, iModel, trendType, rip)
+
         if lstFiles is None: continue
         # sort them in chronological order
         # call the trend estimator
