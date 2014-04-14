@@ -69,10 +69,15 @@ function tosEM(){
 	indir=/data/cmip5/rcp/rcp8.5/tos/
     elif [ ${rcp} = 'rcp45' ]; then
 	rcp=rcp45
-	model=modellisttos45.txt
+	model=modellist_tos45.txt
 	indir=/databis/cmip5_bis/rcp/rcp4.5/tos/
     else
 	echo "Function tosEM: wrong input parameter '$2'="${rcp}". Exit(1)."
+	exit 1
+    fi
+
+    if [ ! -e "${model}" ] ; then
+	echo "Missing model list file "${model}" Exit(1)."
 	exit 1
     fi
 
