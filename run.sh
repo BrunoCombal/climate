@@ -78,6 +78,8 @@ function tosEM(){
 
     outdir=/data/tmp/new_algo/${var}_${rcp}
     tmpdir=/data/tmp/new_algo/tmp_${var}_${rcp}
+    mkdir -p ${outdir}
+    mkdir -p ${tmpdir}
     bindir='./'
 
     dStart=${decade}
@@ -164,4 +166,11 @@ source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
 #tosEM 2040 rcp85
 #dhm 2040 rcp85
-thetaoEM
+
+tosEM 2030 rcp45
+tosEM 2040 rcp45
+tosEM 2050 rcp45
+dhm 2030 rcp45
+dhm 2040 rcp45
+dhm 2050 rcp45
+#thetaoEM
