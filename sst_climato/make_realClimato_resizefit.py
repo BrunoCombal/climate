@@ -153,7 +153,7 @@ def do_resize_int(var, fname, nodata, limit=100):
     yvar = yvar.reshape(dims)
 
     if len(dims)==3:
-        print 'with time'
+        print '\n{0}: Data with time dimension\n'.format(fname)
         outmatrix = numpy.zeros( (dims[0], dims[1]*2, dims[2]*2)) + nodata
         for jjSrc in xrange(dims[1]):
             for iiSrc in xrange(dims[2]):
@@ -175,7 +175,7 @@ def do_resize_int(var, fname, nodata, limit=100):
         for itime in xrange(dims[0]):
             returnData[itime]=numpy.flipud(outData[itime,:,:])
     else:
-        print 'no time dimension'
+        print '\n{0}: Data without time dimension\n'.format(fname)
         outmatrix = numpy.zeros( (dims[0]*2, dims[1]*2) ) + nodata
         for jjSrc in xrange(dims[0]):
             for iiSrc in xrange(dims[1]):
@@ -186,8 +186,8 @@ def do_resize_int(var, fname, nodata, limit=100):
                 outmatrix[ jjSrc*2+1, iiSrc*2+1] = thisData
 
         tmpShape = outmatrix.shape
-        outData = numpy.zeros( (tmpShape[1]-20, tmpShape[2]) )
-        for jjSrc in xrange(outdata.shape[0]):
+        outData = numpy.zeros( (tmpShape[0]-20, tmpShape[1]) )
+        for jjSrc in xrange(outData.shape[0]):
             outData[jjSrc, :] = outmatrix[jjSrc+10, :]
 
         returnData = numpy.flipud(outData)
@@ -206,39 +206,25 @@ if __name__=='__main__':
     cdms2.setNetcdfDeflateLevelFlag(3)
 
     indir='/data/sst/reynolds_climatology/noaa_oist_v2/'
-    outdir='/data/tmp/new_algo/resizing/'#'/data/sst/reynolds_climatology/noaa_oist_v2/resized_framed/'
+    outdir='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/'
     
-    infile=indir+'/max_sst.ltm.1971-2000.nc'
     infile=indir+'sst.ltm.1971-2000.nc'
     outvar = do_resize_int('sst', infile, nodata, 100)
-    print outvar.shape
-    print lonAxis.shape
-    print latAxis.shape
-    
 
-    outfile=outdir+'new_resized.nc'
+    outfile=outdir+'sst.ltm.1971-2000_resized.nc'
     if os.path.exists(outfile): os.remove(outfile)
     fh=cdms2.open(outfile, 'w')
     var = cdms2.createVariable(outvar, typecode='f', id='sst', fill_value=nodata, grid=referenceGrid, copyaxes=1 )
     fh.write(var)
-    fh.close()
-    sys.exit(1)
+    fh.close()    
     
-
-
-    #saveData(outdir+'/max_sst.ltm.1971-2000_resized.nc', outvar, typecode='f', id='sst', fill_value=nodata, grid=referenceGrid, copyaxes=1, attribute1='real Climato max',attribute2='Degrees Celsius',latAxis=latAxis,lonAxis=lonAxis)
+    infile=indir+'/max_sst.ltm.1971-2000.nc'
+    outvar = do_resize_int('sst', infile, nodata, 100)
+    saveData(outdir+'/max_sst.ltm.1971-2000_resized.nc', outvar, typecode='f', id='sst', fill_value=nodata, grid=referenceGrid, copyaxes=1, attribute1='real Climato max',attribute2='Degrees Celsius',latAxis=latAxis,lonAxis=lonAxis)
     
-    #infile=indir+'sst.ltm.1971-2000.nc'
-    #outvar = do_resize_multi('sst',infile)
-    #outfile=outdir+'sst.ltm.1971-2000_resized.nc'
-    #if os.path.exists(outfile): os.remove(outfile)
-    #fh=cdms2.open(outfile, 'w')
-    #var = cdms2.createVariable(outvar, typecode='f', id='sst', fill_value=nodata, grid=referenceGrid, copyaxes=1 )
-    #fh.write(var)
-    #fh.close()
-
     # resize rms at max sst
-    #infile='/data/sst/oimonth_v2/rms_at_maxsst.nc'
-    #print 'processing ',infile
-    #outvar = do_resize('rms_at_max',infile)
-    #saveData(outdir+'/rms_at_maxsst_resized.nc', outvar, typecode='f', id='rms_at_max', fill_value=nodata,grid=referenceGrid, copyaxes=1, attribute1='rms at maximum sst',attribute2='Degrees Celsius',latAxis=latAxis, lonAxis=lonAxis)
+    infile='/data/sst/oimonth_v2/rms_at_maxsst.nc'
+    outvar = do_resize_int('rms_at_max',infile, nodata, 100)
+    saveData(outdir+'/rms_at_maxsst_resized.nc', outvar, typecode='f', id='rms_at_max', fill_value=nodata,grid=referenceGrid, copyaxes=1, attribute1='rms at maximum sst',attribute2='Degrees Celsius',latAxis=latAxis, lonAxis=lonAxis)
+
+# end of script
