@@ -30,24 +30,24 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\t{0} -o|-outdir  PATHOUT [-outpref OUTPREFIX] -input|-in|-i PATHIN PREFIXIN [-tmpdir TMPPATH]\n'.format(__file__)
-    textUsage=textUsage+'\t[-var VARIABLE]\n'
-    textUsage=textUsage+'\t-clim CLIMATO CLIMATOMAX CLIMRMSATMAX\n'
-    textUsage=textUsage+'\t-modelClim MODELCLIMPATH MODELCLIMPREF\n'
-    textUsage=textUsage+'\t-decad DECAD [-log LOGFILE]\n'
-    textUsage=textUsage+'\n\tPATHOUT: output directory, created if does not exist;\n'
-    textUsage=textUsage+'\tOUTPREF: prefix for the output name, default: dhm_;\n'
-    textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
-    textUsage=textUsage+'\tPREFIXIN: prefix of the input files;\n'
-    textUsage=textUsage+'\tTMPPATH: temporary path. Default: a random pathname is defined at runtime, as a leaf of PATHOUT;\n'
-    textUsage=textUsage+'\tVARIABLE: netcdf variable name to use for processing. Default is tos;\n'
-    textUsage=textUsage+'\tCLIMATO: a climatology file, same grid as the SST, with 12 months;\n'
-    textUsage=textUsage+'\tCLIMATOMAX: max value for the climatology;\n'
-    textUsage=textUsage+'\tCLIMTSMATMAX: RMS observed at the climatology max;\n'
-    textUsage=textUsage+'\tMODELCLIMPATH: path to models historical values (before projections);\n'
-    textUsage=textUsage+'\tMODELCLIMPREF: root name (prefix) for the historical files;\n'
-    textUsage=textUsage+'\tDECAD: the Year at which start counting a decad for the final synthesis;\n'
-    textUsage=textUsage+'\tLOGFILE: a logfile name. Default: {0}.log'.format(__file__)
+    textUsage = 'SYNOPSIS:\n\t{0} -o|-outdir  PATHOUT [-outpref OUTPREFIX] -input|-in|-i PATHIN PREFIXIN [-tmpdir TMPPATH]\n'.format(__file__)
+    textUsage = textUsage + '\t[-var VARIABLE]\n'
+    textUsage = textUsage + '\t-clim CLIMATO CLIMATOMAX CLIMRMSATMAX\n'
+    textUsage = textUsage + '\t-modelClim MODELCLIMPATH MODELCLIMPREF\n'
+    textUsage = textUsage + '\t-decad DECAD [-log LOGFILE]\n'
+    textUsage = textUsage + '\n\tPATHOUT: output directory, created if does not exist;\n'
+    textUsage = textUsage + '\tOUTPREF: prefix for the output name, default: dhm_;\n'
+    textUsage = textUsage + '\tPATHIN: input data directory (does not support sub-directories);\n'
+    textUsage = textUsage + '\tPREFIXIN: prefix of the input files;\n'
+    textUsage = textUsage + '\tTMPPATH: temporary path. Default: a random pathname is defined at runtime, as a leaf of PATHOUT;\n'
+    textUsage = textUsage + '\tVARIABLE: netcdf variable name to use for processing. Default is tos;\n'
+    textUsage = textUsage + '\tCLIMATO: a climatology file, same grid as the SST, with 12 months;\n'
+    textUsage = textUsage + '\tCLIMATOMAX: max value for the climatology;\n'
+    textUsage = textUsage + '\tCLIMTSMATMAX: RMS observed at the climatology max;\n'
+    textUsage = textUsage + '\tMODELCLIMPATH: path to models historical values (before projections);\n'
+    textUsage = textUsage + '\tMODELCLIMPREF: root name (prefix) for the historical files;\n'
+    textUsage = textUsage + '\tDECAD: the Year at which start counting a decad for the final synthesis;\n'
+    textUsage = textUsage + '\tLOGFILE: a logfile name. Default: {0}.log'.format(__file__)
 
     print textUsage
 # ____________________________
@@ -172,7 +172,8 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 
     # open the 12 model climatos
     modelClim=[]
-    frequencyLvl2=numpy.zeros( realClim[0].shape[0] * realClim[0].shape[1] )
+    # initial value for frequency is set to nodata=1.e20
+    frequencyLvl2=numpy.zeros( realClim[0].shape[0] * realClim[0].shape[1] ) + nodata
     for imonth in range(1,13):
         thisName=os.path.join(inhist, '{0}{1:02}.nc'.format(modelClimatoRootName, imonth))
         if not os.path.exists(thisName): 
@@ -237,12 +238,19 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
         saveData( os.path.join( outdir , '{0}{1}.nc'.format(dhmRootName, iyear)), dhmYearly.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'f', 'dhm', 1.e20, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
 
         # update frequency
-        wtk = dhmYearly > 2
+        # let's update frequencies having real values
+        wtk = (dhmYearly > 2) * (frequencyLvl2 < nodata) 
         if wtk.any():
             frequencyLvl2[wtk] = frequencyLvl2[wtk] + 1
-        wnodata = numpy.ravel(modelClim[ 0 ]['Band1'][:]) >= nodata
-        if wnodata.any():
-            frequencyLvl2[wnodata] = -1
+        # let's consider frequencies never updated so far (and identified as nodata)
+        wtk = (dhmYearly > 2 ) * (frequencyLvl2 >= nodata)
+        if wtk.any():
+            frequencyLvl2[wtk] = 1
+
+
+    wnodata = numpy.ravel(modelClim[ 0 ]['Band1'][:]) >= nodata
+    if wnodata.any():
+        frequencyLvl2[wnodata] = -1
         wnodata = realClim[0,:,:].ravel() >= nodata
         if wnodata.any():
             frequencyLvl2[wnodata] = -1
@@ -357,7 +365,7 @@ if __name__=="__main__":
 
     # check dirs existing
     if not os.path.isdir(indir):
-        exitMessage('{0} does not exist or is not a directory. Exit(20).',20)
+        exitMessage('{0} does not exist or is not a directory. Exit(20).'.format(indir),20)
     if not os.path.isdir(outdir):
         if not os.path.exists(outdir):
             thisLogger.warning('Creating directory {0}. Continue.'.format(outdir))
