@@ -122,7 +122,7 @@ function thetaoEM(){
     ${bindir}/make_ensembleMean_tzyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear 2030 -endYear 2031 -rcp ${rcp} -resolution 1
 
 }
-
+# _____________________________________
 # \brief Computes DHM (degree heating month)
 function dhm(){
     outdir='/data/tmp/new_algo/dhm_rcp'${2}'/'
@@ -133,7 +133,7 @@ function dhm(){
     climDir='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/sst.ltm.1971-2000_resized.nc'
     maxRealClim='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/max_sst.ltm.1971-2000_resized.nc'
     rmsAtMaxClim='/data/sst/reynolds_climatology/noaa_oist_v2/resized_fitted/rms_at_maxsst_resized.nc'
-    modelClimDir='/data/cmip5/rcp/rcp8.5/toshist_ensemble/'
+    modelClimDir='/data/cmip5/rcp/toshist_ensemble/'
     modelClim='climato_tos_1971_2000_'
     bindir='./'
 
@@ -169,13 +169,15 @@ source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 #done
 #trends 'tos' 'esm'
 
+#tosEM 2010 rcp85
+
 #tosEM 2040 rcp85
 #dhm 2040 rcp85
 
-tosEM 2030 rcp45
-tosEM 2040 rcp45
-tosEM 2050 rcp45
-dhm 2030 rcp45
-dhm 2040 rcp45
-dhm 2050 rcp45
+#tosEM 2030 rcp45
+#tosEM 2040 rcp45
+#tosEM 2050 rcp45
+dhm 2030 rcp85
+dhm 2040 rcp85
+dhm 2050 rcp85
 #thetaoEM
