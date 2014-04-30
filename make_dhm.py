@@ -173,7 +173,7 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
     # open the 12 model climatos
     modelClim=[]
     # initial value for frequency is set to nodata=1.e20
-    frequencyLvl2=numpy.zeros( realClim[0].shape[0] * realClim[0].shape[1] ) + nodata
+    frequencyLvl2=numpy.zeros( realClim[0].shape[0] * realClim[0].shape[1] ) # + nodata
     for imonth in range(1,13):
         thisName=os.path.join(inhist, '{0}{1:02}.nc'.format(modelClimatoRootName, imonth))
         if not os.path.exists(thisName): 
@@ -209,7 +209,7 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 
                 ##
                 # wtk = tosCorrected.ravel() > ( numpy.ravel(climMax + RMSatMaxSST) )
-                ## use an already corected version of climMax
+                ## use an already corrected version of climMax
                 wtk = numpy.ravel(tosCorrected) > numpy.ravel(climMax)
                 if wtk.any():
                     ##
@@ -239,13 +239,13 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
 
         # update frequency
         # let's update frequencies having real values
-        wtk = (dhmYearly > 2) * (frequencyLvl2 < nodata) 
+        wtk = dhmYearly > 2 # * (frequencyLvl2 < nodata) 
         if wtk.any():
             frequencyLvl2[wtk] = frequencyLvl2[wtk] + 1
-        # let's consider frequencies never updated so far (and identified as nodata)
-        wtk = (dhmYearly > 2 ) * (frequencyLvl2 >= nodata)
-        if wtk.any():
-            frequencyLvl2[wtk] = 1
+        ## let's consider frequencies never updated so far (and identified as nodata)
+        #wtk = (dhmYearly > 2 ) * (frequencyLvl2 >= nodata)
+        #if wtk.any():
+        #    frequencyLvl2[wtk] = 1
 
 
     wnodata = numpy.ravel(modelClim[ 0 ]['Band1'][:]) >= nodata
@@ -261,7 +261,7 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
         frequencyLvl2[wrecode] = -1
 
     # save frequency
-    saveData(os.path.join( outdir , '{0}{1}.nc'.format('frequency_lvl2_', yearList[0])), frequencyLvl2.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'i', 'lvl2_freq', -1, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
+    saveData(os.path.join( outdir , '{0}_{1}.nc'.format('frequency_lvl2_', yearList[0])), frequencyLvl2.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'i', 'lvl2_freq', -1, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
     for ii in modelClim:
         ii.close()
 # _______________
