@@ -10,6 +10,7 @@ import glob
 import sys
 import os
 from os import path
+import shutil
 import re
 import string
 import random
@@ -310,7 +311,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, res
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
 # if a new grid is passed: regrid
-def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20, doSTD=False):
+def do_stats(variable, resolution, validYearList, monthList, lstInFile, outdir, stringBefore, outnameBase, minVar=-1.e20, maxVar=1.e20, doSTD=False):
     
     if validYearList is None:
         exitMessage('List of years to process is undefined, edit code. Exit 5.',5)
@@ -373,23 +374,27 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
             # in this case, accumN is None: do not save stats, and do not add a file name in createdFiles
             if accumN is not None:
                 wtdivide = (accumN < nodata) * (accumN > 0)
-            
-            
+
                 if wtdivide.any():
                     accumVar[wtdivide] = accumVar[wtdivide] / accumN[wtdivide]
 
                 # compute std
                 if doSTD:
                     thisLogger.info('Computing std: to be implemented')
-                # create and save variables
-                meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable),  fill_value=nodata, attributes=dict(long_name='mean', units=units) )
-                meanVar.setGrid(refGrid)
 
-                counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, attributes=dict(long_name='count', units='None') )
+                #if refGrid is None: # does not work
+                #    # force creation of the grid
+                #    refGrid = makeGrid(resolution)
+
+                # create and save variables
+                meanVar = cdms2.createVariable( accumVar.reshape(dims), typecode='f', id='mean_{0}'.format(variable), grid=refGrid, fill_value=nodata, attributes=dict(long_name='mean', units=units) )
+                meanVar.setGrid(refGrid)
+                    
+                counter = cdms2.createVariable(accumN.reshape(dims), typecode='i', id='count', fill_value=nodata, grid=refGrid, attributes=dict(long_name='count', units='None') )
                 counter.setGrid(refGrid)
-                miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, attributes=dict(long_name='minimum', units=units) )
+                miniVar = cdms2.createVariable(mini.reshape(dims), typecode='f', id='minimum', fill_value=nodata, grid=refGrid, attributes=dict(long_name='minimum', units=units) )
                 miniVar.setGrid(refGrid)
-                maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, attributes=dict(long_name='maximum', units=units) )
+                maxiVar = cdms2.createVariable(maxi.reshape(dims), typecode='f', id='maximum', fill_value=nodata, grid=refGrid, attributes=dict(long_name='maximum', units=units) )
                 maxiVar.setGrid(refGrid)
 
                 outfilename = '{0}/{1}_{2}_{3}{4:02}.nc'.format(outdir, stringBefore, outnameBase, iyear, imonth )
@@ -431,6 +436,7 @@ if __name__=="__main__":
     topLevel=0
     bottomLevel=300
     resolution=0.5
+    deleteTmp=True
 
     ii = 1
     while ii < len(sys.argv):
@@ -506,6 +512,11 @@ if __name__=="__main__":
 
     if tmpdir is None:
         tmpdir = '{0}/tmp_{1}'.format(outdir, id_generator() )
+    else:
+        # by default, the tmp directory is removed. In case the user would give '.' or a folder name with exsting data, it
+        # is better to create a child directory
+        thistmpdir='{0}/tmp_{1}'.format(tmpdir, id_generator() )
+        tmpdir=thistmpdir
 
     if not os.path.exists(outdir): os.makedirs(outdir)
     if not os.path.exists(tmpdir): os.makedirs(tmpdir)
@@ -545,7 +556,7 @@ if __name__=="__main__":
         else:
             regridedFiles = lstInFile
 
-        thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, rcp), minVar, maxVar )
+        thisModelFiles = do_stats(variable, resolution, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, rcp), minVar, maxVar )
         if deleteRegrid:
             for ii in regridedFiles: os.remove(ii)
 
@@ -563,9 +574,12 @@ if __name__=="__main__":
             thisLogger.info('>> Averaging date {0}'.format(idate))
             listFiles = [x for x in flatten(processedFiles[idate])]
             thisLogger.info('>> averaging files '.format(listFiles))
-            returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
-
+            returnedList = do_stats('mean_{0}'.format(variable), resolution, [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
             gc.collect()
 
+
+    # delete tmpdir
+    if deleteTmp:
+        shutil.rmtree(tmpdir)
 
 # end of file
