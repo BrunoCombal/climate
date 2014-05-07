@@ -261,7 +261,7 @@ def do_dhm(var, inhist, modelClimatoRootName, indir, sstRootName, realClimato, m
         frequencyLvl2[wrecode] = -1
 
     # save frequency
-    saveData(os.path.join( outdir , '{0}_{1}.nc'.format('frequency_lvl2_', yearList[0])), frequencyLvl2.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'i', 'lvl2_freq', -1, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
+    saveData(os.path.join( outdir , '{0}_{1}.nc'.format('frequency_lvl2', yearList[0])), frequencyLvl2.reshape( (realClim[0].shape[0] , realClim[0].shape[1])  ), 'i', 'lvl2_freq', -1, referenceGrid, 1, 'dhm', 'None', latAxis, lonAxis)
     for ii in modelClim:
         ii.close()
 # _______________
