@@ -20,11 +20,12 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT [-tmpdir TMPPATH] \n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n\t[-regridFirst REGRIDBOOL] [-deleteGrid DELETEBOOL] -rcp RCP\n'
+    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT [-tmpdir TMPPATH] [-keepTmp] \n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n\t[-regridFirst REGRIDBOOL] [-deleteGrid DELETEBOOL] -rcp RCP\n'
     textUsage=textUsage+'\tVARIABLE: a netcdf CMIP5 variable name, such as tos, zos, so, thetao;\n'
     textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
     textUsage=textUsage+'\tPATHOUT: output directory, created if does not exist;\n'
     textUsage=textUsage+'\tTMPPATH: temporary path. Default: a random pathname is defined at runtime, as a leaf of PATHOUT;\n'
+    textUsage=textUsage+'\tkeepTmp: do not remove temporary directories;\n'
     textUsage=textUsage+'\tMINVAL: any value below minVar is considered as nodata;\n'
     textUsage=textUsage+'\tMAXVAL: any value above maxVar is considered as nodata;\n'
     textUsage=textUsage+'\tMODELLIST: a text file with a model name per name, the model name is used to select the files to process;\n'
@@ -451,6 +452,8 @@ if __name__=="__main__":
         elif arg == '-tmpdir':
             ii = ii + 1
             tmpdir = sys.argv[ii]
+        elif arg == '-keeptmp':
+            deleteTmp=False
         elif arg == '-v':
             ii = ii + 1
             variable = sys.argv[ii]
