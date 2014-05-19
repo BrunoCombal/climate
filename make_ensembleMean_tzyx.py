@@ -10,6 +10,7 @@ import glob
 import sys
 import os
 from os import path
+import shutil
 import re
 import string
 import random
@@ -19,11 +20,12 @@ import logging.handlers
 
 # ____________________________
 def usage():
-    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tyx.py -v VARIABLE -path PATHIN -outdir PATHOUT [-tmpdir TMPPATH] \n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n\t[-regridFirst REGRIDBOOL] [-deleteGrid DELETEBOOL] -rcp RCP\n'
+    textUsage='SYNOPSIS:\n\tmake_ensemble_Mean_tzyx.py -v VARIABLE -path PATHIN -outdir PATHOUT [-tmpdir TMPPATH] [keepTmp] \n\t-minVar MINVAL -maxVar MAXVAL\tn-model MODELLIST -startYear STARTYEAR -endYear ENDYEAR [-monthList MONTHLIST]\n\t[-regridFirst REGRIDBOOL] [-deleteGrid DELETEBOOL] -rcp RCP\n'
     textUsage=textUsage+'\tVARIABLE: a netcdf CMIP5 variable name, such as tos, zos, so, thetao;\n'
     textUsage=textUsage+'\tPATHIN: input data directory (does not support sub-directories);\n'
     textUsage=textUsage+'\tPATHOUT: output directory, created if does not exist;\n'
     textUsage=textUsage+'\tTMPPATH: temporary path. Default: a random pathname is defined at runtime, as a leaf of PATHOUT;\n'
+    textUsage=textUsage+'\tkeepTmp: do not remove temporary directories;\n'
     textUsage=textUsage+'\tMINVAL: any value below minVar is considered as nodata;\n'
     textUsage=textUsage+'\tMAXVAL: any value above maxVar is considered as nodata;\n'
     textUsage=textUsage+'\tMODELLIST: a text file with a model name per name, the model name is used to select the files to process;\n'
@@ -366,21 +368,23 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                     if refGrid is None: 
                         refGrid = ifile[variable].getGrid()
                         # axis=ifile[variable].getAxisList(omit='time')
-                        if ifile[variable].getTime is None:
-                            dims=numpy.squeeze(ifile[variable]).shape
-                            [accumVar, accumN, mini, maxi] = updateCounters( accumVar, accumN, mini, maxi,
-                                                                             numpy.array(ifile[variable]).ravel(),
-                                                                             minVar, maxVar, nodata)
+                        dims=numpy.squeeze(ifile[variable]).shape
+                    [accumVar, accumN, mini, maxi] = updateCounters( accumVar, accumN, mini, maxi,
+                                                                     numpy.array(ifile[variable]).ravel(),
+                                                                     minVar, maxVar, nodata)
                 else: # we can do some time slice
                     thisTime = [ii for ii in ifile[variable].getTime().asComponentTime() if (ii.year==iyear and ii.month==imonth)] 
                     if len(thisTime)==1:
                         if refGrid is None:
                             refGrid = ifile[variable].getGrid()
                             dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
-                            [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
-                                                                           numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
-                                                                           minVar, maxVar, nodata )
-                    units= ifile[variable].units
+                            units= ifile[variable].units
+
+                        [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
+                                                                       numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
+                                                                       minVar, maxVar, nodata )
+                
+                units= ifile[variable].units
 
                 
 
@@ -447,6 +451,7 @@ if __name__=="__main__":
     maxVar=1.e20
     topLevel=0
     bottomLevel=300
+    deleteTmp=True
 
     ii = 1
     while ii < len(sys.argv):
@@ -461,6 +466,8 @@ if __name__=="__main__":
         elif arg == '-tmpdir':
             ii = ii + 1
             tmpdir = sys.argv[ii]
+        elif arg == '-keeptmp':
+            deleteTmp=False
         elif arg == '-v':
             ii = ii + 1
             variable = sys.argv[ii]
@@ -558,23 +565,29 @@ if __name__=="__main__":
             regridedFiles = lstInFile
 
         thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, rcp), minVar, maxVar )
+
         if deleteRegrid:
             for ii in regridedFiles: os.remove(ii)
 
         processedFiles = agregateDict(processedFiles, thisModelFiles)
         gc.collect()
 
+    if len(modelList)==1:
+        thisLogger.info('>>> 1 model in input: job finished after first averaging round.')
+    else:
+        thisLogger.info( '>> Averaging models averages, for each date')
+        for idate in processedFiles: # iteration over keys
+            thisYear = int(idate[0:4])
+            thisMonth= int(idate[4:6])
+            thisLogger.info('>> Averaging date {0}'.format(idate))
+            listFiles = [x for x in flatten(processedFiles[idate])]
+            thisLogger.info('>> averaging files '.format(listFiles))
+            returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
+            gc.collect()
 
-    thisLogger.info( '>> Averaging models averages, for each date')
-    for idate in processedFiles: # iteration over keys
-        thisYear = int(idate[0:4])
-        thisMonth= int(idate[4:6])
-        thisLogger.info('>> Averaging date {0}'.format(idate))
-        listFiles = [x for x in flatten(processedFiles[idate])]
-        thisLogger.info('>> averaging files '.format(listFiles))
-        returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
-
-        gc.collect()
-
+    # delete tmpdir
+    if deleteTmp:
+        shutil.rmtree(tmpdir)
+            
 
 # end of file
