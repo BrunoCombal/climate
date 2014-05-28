@@ -169,53 +169,70 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
     return areaWP
 # ____________________________
 # WP definition: average annual temperature >= threshold
-def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, threshold=28.75+273.15):
+def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, threshold=28.5+273.15):
     nodata=1.e20
     varUnits=None
     
     EarthSurface = 510072000
+    factor = (2*85*360) /( 360.0*180.0)
     
     areaWP=[]
-
+    print 'variable ',variable
     for iyear in range(yearStart, yearEnd+1):
         tempAvg=None
         wdata=None
         weights = None
         dimVar=None
+        counter = None
         print 'Processing year {0}'.format(iyear) 
         for imonth in range(1, 12+1):
             idate = '{0}{1:02}'.format(iyear, imonth)
             fname = '{0}/{1}_{2}.nc'.format(sstdir, sstrootname, idate)
+            print 'opening file {0}'.format(fname)
             thisFile = cdms2.open(fname)
             thisVar = numpy.ravel(thisFile[variable][:])
+
             if tempAvg is None: # settings
-                (latws, lonws) = thisFile[variable].getGrid().getWeights()
+                thisGrid = thisFile[variable].getGrid()
+                if thisGrid is None:
+                    thisGrid=makeGrid()
+
+                (latws, lonws) = thisGrid.getWeights()
                 weights = MV.outerproduct(latws, lonws)
                 tempAvg = thisVar
                 wdata = thisVar < nodata # the data creation has ensured that nodata are aligned accross the volume
                 dimVar = numpy.squeeze(thisFile[variable][:]).shape
+                counter = numpy.zeros(tempAvg.shape, dtype='float')
+                counter[wdata] = 1
             else:
+                wdata = thisVar < nodata
+                counter[wdata]=counter[wdata]+1
                 tempAvg[wdata] = tempAvg[wdata] + thisVar[wdata]
         # compute average
-        tempAvg = tempAvg / 12.0
+        wdivide = counter > 0
+        avg = numpy.zeros(tempAvg.shape)
+        if wdivide.any:
+            avg[wdivide] = tempAvg[wdivide] / counter[wdivide]
         # set to  areas < threshold
-        wtzero = tempAvg < threshold
-        tempAvg[wtzero] = 0
-        
+        wtzero = avg < threshold
+        avg[wtzero] = 0
+            
         # compute current area
-        warea = (tempAvg >= threshold) * (tempAvg < nodata)
-        area = EarthSurface * numpy.ravel(weights)[warea].sum()
+        warea = (avg >= threshold) * (avg < nodata)
+        area = factor * EarthSurface * numpy.ravel(weights)[warea].sum()
         areaWP.append([iyear, area])
-
+        
         # create variables
-        wpOut = cdms2.createVariable(tempAvg.reshape(dimVar), typecode='f', id='warmpool', \
-                                         fill_value=nodata, grid=thisFile[variable].getGrid(), copyaxes=1, \
+        outArea = numpy.reshape(avg, dimVar)
+
+        wpOut = cdms2.createVariable(outArea, typecode='f', id='warmpool', \
+                                         fill_value=nodata, grid=thisGrid, copyaxes=1, \
                                          attributes=dict(long_name='warmpool, average temperature method, year {0}'.format(iyear), units=varUnits))
         # write to file
         outfilename='{0}/warmpool_{1}.nc'.format(outdir, iyear)
         if os.path.exists(outfilename): os.remove(outfilename)
         outfile=cdms2.open(outfilename, 'w')
-        outfile.write(wpOut)
+#        outfile.write(wpOut)
         outfile.close()
         # close files
         thisFile.close()
@@ -223,12 +240,12 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
 # ____________________________
 if __name__=="__main__":
 
-    sstdir='/data/cmip5/rcp/rcp8.5/tos_ensemble'
+    sstdir='/data/tmp/new_algo/tos_rcp85'
     sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
     outdir='/data/cmip5/rcp/rcp8.5/tos_warmpools'
     
     # all temp, projections
-    areaWP = do_yearlyWP(sstdir, 'modelmean_tos_rcp85', 'mean_mean_tos', outdir, 2010, 2059)
+    areaWP = do_yearlyWPAvg(sstdir, 'ensemble_tos_rcp85', 'mean_mean_tos', outdir, 2010, 2059)
     # avg temp, projections
     #areaWP = do_yearlyWPAvg(sstdir, 'modelmean_tos', 'tos', outdir, 2006, 2059, 28+273.15)
     # avg temp, hist
