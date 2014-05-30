@@ -49,10 +49,58 @@ def makeGrid():
 
     return(cdms2.createGenericGrid(latAxis, lonAxis, lat_bnds, lon_bnds))
 # ___________________________
+def do_convolve(data, thisFilter, lower, upper, xs, xe, ys, ye):
+
+    filterDims=thisFilter.shape
+
+    if len(filterDims) > 2:
+        print 'wrong filter dimensions. Exit(200).'
+        sys.exit(200)
+
+    dataOut = data
+
+    for il in range(ys, ye+1):
+        for ic in range(xs, xe+1):
+            total=0
+            count=0
+            for kl in range(filterDims[0]):
+                for kc in range(filterDims[1]):
+                    if (data[il][ic] > lower) and (data[il][ic]<upper):
+                        total = total + thisFilter[kl][kc] * data[il][ic]
+                        count = count + thisFilter[kl][kc]
+
+            if count > 0:
+                dataOut[il][ic] = total / float(count)
+
+    return dataOut
+# ___________________________
+def do_interp(data, lower, upper, xs,xe,ys,ye):
+
+    dataOut = data
+    
+    for il in range(ys, ye+1):
+        if (data[il][xs-1] > lower) and (data[il][xs-1] < upper):
+            v0 = data[il][xs-1]
+
+            xfinal=xe+1 # where does the interpolation finish?
+            if (data[il][xfinal] > lower) and (data[il][xfinal] < upper):
+                v1 = data[il][xfinal]
+            else:
+                for xfinal in range(xe+1, xs+1, -1):
+                    if (data[il][xfinal] > lower) and (data[il][xfinal] <upper):
+                        break # we keep xfinal for the final position for interpolating
+
+            for ic in range(xs, xfinal):
+                if dataOut[il][ic] > lower and dataOut[il][ic] < upper: # do not change no data
+                    t = (ic-xs + 1)/(xe-xs+1)
+                    dataOut[il][ic] = (1-t) * v0 + t * v1
+
+    return dataOut
+# ___________________________
 # WP definition: all values must be >= threshold
 def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
     
-    threshold = 28.75 + 273.15
+    threshold = 28 + 273.15
     nodata = 1.e20
     varUnits=None
     referenceGrid=None
@@ -172,12 +220,13 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
 def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, threshold=28.5+273.15):
     nodata=1.e20
     varUnits=None
+    thisFilter=numpy.ones((3,3))
+    #thisFilter[1][1]=1
     
     EarthSurface = 510072000
-    factor = (2*85*360) /( 360.0*180.0)
-    
+    factor = 1 #(2*85*360) /( 360.0*180.0)
+
     areaWP=[]
-    print 'variable ',variable
     for iyear in range(yearStart, yearEnd+1):
         tempAvg=None
         wdata=None
@@ -188,7 +237,6 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
         for imonth in range(1, 12+1):
             idate = '{0}{1:02}'.format(iyear, imonth)
             fname = '{0}/{1}_{2}.nc'.format(sstdir, sstrootname, idate)
-            print 'opening file {0}'.format(fname)
             thisFile = cdms2.open(fname)
             thisVar = numpy.ravel(thisFile[variable][:])
 
@@ -196,11 +244,12 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
                 thisGrid = thisFile[variable].getGrid()
                 if thisGrid is None:
                     thisGrid=makeGrid()
-
                 (latws, lonws) = thisGrid.getWeights()
                 weights = MV.outerproduct(latws, lonws)
-                tempAvg = thisVar
-                wdata = thisVar < nodata # the data creation has ensured that nodata are aligned accross the volume
+                wdata = thisVar < nodata 
+                tempAvg = numpy.zeros(thisVar.shape)
+                tempAvg[wdata] = thisVar[wdata]
+
                 dimVar = numpy.squeeze(thisFile[variable][:]).shape
                 counter = numpy.zeros(tempAvg.shape, dtype='float')
                 counter[wdata] = 1
@@ -223,35 +272,45 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
         areaWP.append([iyear, area])
         
         # create variables
-        outArea = numpy.reshape(avg, dimVar)
+        outAreaTmp = numpy.reshape(avg, dimVar)
+
+        # filter before saving: grid stiching area: less data for ensemble mean here
+        outAreaBis = do_interp(outAreaTmp, threshold, nodata, 156, 156+3, 0, 4*80) # rebuild
+        outArea = do_convolve(outAreaBis, thisFilter,  threshold, nodata, 156+2 , 156+5, 0, 4*80) # smoothen
 
         wpOut = cdms2.createVariable(outArea, typecode='f', id='warmpool', \
-                                         fill_value=nodata, grid=thisGrid, copyaxes=1, \
+                                         grid=thisGrid, copyaxes=1, \
                                          attributes=dict(long_name='warmpool, average temperature method, year {0}'.format(iyear), units=varUnits))
         # write to file
         outfilename='{0}/warmpool_{1}.nc'.format(outdir, iyear)
         if os.path.exists(outfilename): os.remove(outfilename)
         outfile=cdms2.open(outfilename, 'w')
-#        outfile.write(wpOut)
+        outfile.write(wpOut)
         outfile.close()
         # close files
         thisFile.close()
+
+        sys.exit()
+
     return areaWP
 # ____________________________
 if __name__=="__main__":
 
-    sstdir='/data/tmp/new_algo/tos_rcp85'
-    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
-    outdir='/data/cmip5/rcp/rcp8.5/tos_warmpools'
+
+    rcp='8'
+#    sstdir='/data/tmp/new_algo/tos_rcp85'
+    sstdir='/data/tmp/new_algo/tos_rcp{0}5'.format(rcp)
+#    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
+    outdir='/data/cmip5/rcp/rcp{0}.5/tos_warmpools'.format(rcp)
     
     # all temp, projections
-    areaWP = do_yearlyWPAvg(sstdir, 'ensemble_tos_rcp85', 'mean_mean_tos', outdir, 2010, 2059)
+    areaWP = do_yearlyWPAvg(sstdir, 'ensemble_tos_rcp{0}5'.format(rcp), 'mean_mean_tos', outdir, 2010, 2059)
     # avg temp, projections
     #areaWP = do_yearlyWPAvg(sstdir, 'modelmean_tos', 'tos', outdir, 2006, 2059, 28+273.15)
     # avg temp, hist
     #areaWP = do_yearlyWPAvg(sstdirHist, 'modelmean_tos', 'tos', outdir, 1850, 2005, 28+273.15)
     for ii, area in areaWP:
-        print '{0}\t{1}'.format(ii, area)
+        print '{0},{1},{2}'.format(ii, area, area / areaWP[0][1])
 
 
 # end of script
