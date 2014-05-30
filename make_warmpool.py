@@ -290,8 +290,6 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
         # close files
         thisFile.close()
 
-        sys.exit()
-
     return areaWP
 # ____________________________
 if __name__=="__main__":
