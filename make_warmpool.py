@@ -90,6 +90,8 @@ def do_interp(data, lower, upper, xs,xe,ys,ye):
                     if (data[il][xfinal] > lower) and (data[il][xfinal] <upper):
                         break # we keep xfinal for the final position for interpolating
 
+            v1 = data[il][xfinal]
+
             for ic in range(xs, xfinal):
                 if dataOut[il][ic] > lower and dataOut[il][ic] < upper: # do not change no data
                     t = (ic-xs + 1)/(xe-xs+1)
