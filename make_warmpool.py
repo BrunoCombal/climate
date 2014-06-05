@@ -297,7 +297,7 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
 if __name__=="__main__":
 
 
-    rcp='8'
+    rcp='4'
 #    sstdir='/data/tmp/new_algo/tos_rcp85'
     sstdir='/data/tmp/new_algo/tos_rcp{0}5'.format(rcp)
 #    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
