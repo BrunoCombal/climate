@@ -357,6 +357,8 @@ if __name__=="__main__":
             ii = ii + 1
             outdir=sys.argv[ii]
 
+        ii = ii + 1
+
     # check parameters exist
     if sstdir is None:
         exitMessage('Missing an input directory, use option -indir. Exit(1).',1)
