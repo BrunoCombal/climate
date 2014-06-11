@@ -140,11 +140,12 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, la
 
             if latWindow is not None:
                 if latWindowMatrix is None:
-                    latWindowMatrix = numpy.zeros(thisVar.shape)
+                    latWindowMatrix = numpy.zeros(thisFile[variable].shape)
                     for ii in xrange(latWindow[0], latWindow[1]+1):
-                        latWindowMatrix[:][ii] = 1
+                        latWindowMatrix[:,ii] = 1
                 thisVarTmp = thisVar
                 thisVar = numpy.multiply( thisVarTmp, numpy.ravel(latWindowMatrix) )
+
 
             if warmpool is None:
                 dimVar = numpy.squeeze(thisFile[variable][:]).shape
@@ -266,9 +267,9 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
     
             if latWindow is not None:
                 if latWindowMatrix is None:
-                    latWindowMatrix = numpy.zeros(thisVar.shape)
+                    latWindowMatrix = numpy.zeros(thisFile[variable].shape)
                     for ii in xrange(latWindow[0], latWindow[1]+1):
-                        latWindowMatrix[:][ii] = 1
+                        latWindowMatrix[:,ii] = 1
                 thisVarTmp = thisVar
                 thisVar = numpy.multiply( thisVarTmp, numpy.ravel(latWindowMatrix) )
 
