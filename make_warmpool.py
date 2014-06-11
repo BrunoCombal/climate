@@ -14,6 +14,16 @@ from os import path
 import re
 import string
 
+# ___________________________
+def usage():
+    text='SYNOPSIS:\n\t{0} -indir sstdir -fileBasename basename -var varId -start startYear -end endYear [-bounds xmin xmax] -outdir outdir'.format(os.path.basename(__file__))
+    return text
+# ___________________________
+def exitMessage(msg, exitCode='1'):
+    print msg
+    print
+    print usage()
+    sys.exit(exitCode)
 #____________________________
 def makeGrid():
     xstart=0
@@ -100,8 +110,11 @@ def do_interp(data, lower, upper, xs,xe,ys,ye):
     return dataOut
 # ___________________________
 # WP definition: all values must be >= threshold
-def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
+def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, latWindow=None):
     
+    latWindow=[70, 580]
+
+
     threshold = 28 + 273.15
     nodata = 1.e20
     varUnits=None
@@ -114,6 +127,8 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
 
     areaWP=[]
     
+    latWindowMatrix = None
+
     for iyear in range(yearStart, yearEnd+1):
         warmpool = None
         wnodata = None
@@ -125,6 +140,15 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd):
             fname = '{0}/{1}_{2}.nc'.format(sstdir, sstrootname, idate)
             thisFile = cdms2.open(fname)
             thisVar = numpy.ravel(thisFile[variable][:])
+
+            if latWindow is not None:
+                if latWindowMatrix is None:
+                    latWindowMatrix = numpy.zeros(thisVar.shape)
+                    for ii in xrange(latWindow[0], latWindow[1]+1):
+                        latWindowMatrix[:][ii] = 1
+                thisVarTmp = thisVar
+                thisVar = numpy.multiply( thisVarTmp, numpy.ravel(latWindowMatrix) )
+
             if warmpool is None:
                 dimVar = numpy.squeeze(thisFile[variable][:]).shape
                 varUnits = thisFile[variable].units
@@ -296,21 +320,70 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
 # ____________________________
 if __name__=="__main__":
 
+    sstdir=None
+    outdir=None
+    startYear=None #2010
+    endYear=None # 2059
+    bounds=None #[70 580]
+    var=None #'mean_mean_tos'
+    fileBasename=None #'ensemble_tos_rcp85'
 
-    rcp='4'
-#    sstdir='/data/tmp/new_algo/tos_rcp85'
-    sstdir='/data/tmp/new_algo/tos_rcp{0}5'.format(rcp)
-#    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
-    outdir='/data/cmip5/rcp/rcp{0}.5/tos_warmpools'.format(rcp)
+    ii = 1
+    while ii < len(sys.argv):
+        arg = sys.argv[ii].lower()
+        
+        if arg == '-indir':
+            ii = ii + 1
+            sstdir=sys.argv[ii]
+        elif arg == '-fileBasename':
+            ii = ii + 1
+            fileBasename=sys.argv[ii]
+        elif arg == '-start':
+            ii = ii + 1
+            startYear = int(sys.argv[ii])
+        elif arg == '-end':
+            ii = ii + 1
+            endYear = int(sys.argv[ii])
+        elif arg == '-bounds':
+            ii = ii + 1
+            bounds=[]
+            bounds.append(int(sys.argv[ii]))
+            ii = ii + 1
+            bounds.append(int(sys.argv[ii]))
+        elif arg=='-var':
+            ii = ii + 1
+            var = sys.argv[ii]
+        elif arg == '-outdir':
+            ii = ii + 1
+            outdir=sys.argv[ii]
+
+    # check parameters exist
+    if sstdir is None:
+        exitMessage('Missing an input directory, use option -indir. Exit(1).',1)
+    if startYear is None:
+        exitMessage('Missing a starting year, use option -start. Exit(2).',2)
+    if endYear is None:
+        exitMessage('Missing an ending year, use option -end. Exit(3).', 3)
+    if outdir is None:
+        exitMessage('Missing an output directory, use option -outdir. Exit(4).',4)
+    if var is None:
+        exitMessage('Missing a variable identifier for the netcdf files. Exit(5).', 5)
+    if fileBasename is None:
+        exitMessage('Missing a filebasename, use option -fileBasename. Exit(6).', 6)
+
+#    rcp='8'
+##    sstdir='/data/tmp/new_algo/tos_rcp85'
+#    sstdir='/data/tmp/new_algo/tos_rcp{0}5'.format(rcp)
+##    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
+#    outdir='/data/cmip5/rcp/rcp{0}.5/tos_warmpools'.format(rcp)
     
     # all temp, projections
-    areaWP = do_yearlyWPAvg(sstdir, 'ensemble_tos_rcp{0}5'.format(rcp), 'mean_mean_tos', outdir, 2010, 2059)
+    areaWP = do_yearlyWPAvg(sstdir, fileBasename, var, outdir, startYear, endYear, bounds)
     # avg temp, projections
     #areaWP = do_yearlyWPAvg(sstdir, 'modelmean_tos', 'tos', outdir, 2006, 2059, 28+273.15)
     # avg temp, hist
     #areaWP = do_yearlyWPAvg(sstdirHist, 'modelmean_tos', 'tos', outdir, 1850, 2005, 28+273.15)
     for ii, area in areaWP:
         print '{0},{1},{2}'.format(ii, area, area / areaWP[0][1])
-
 
 # end of script

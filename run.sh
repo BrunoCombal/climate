@@ -2,9 +2,25 @@
 # \author Bruno Combal
 # \date November 2013
 
-# a series of function to call the different cliamte processing
+# a series of function to call the different climate processing
 # caution: this script is giving as an example, there is no input parameters tests.
 # Read carefuly before using.
+
+# _________________________________
+# \brief compute warm pool
+bindir=${HOME}/github/misc
+
+startYear=$1
+endYear=$2
+rcpCode=$3
+
+#sstdir='/data/tmp/new_algo/tos_rcp85'
+sstdir="/data/tmp/new_algo/tos_rcp${rcpCode}5"
+#    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
+outdir="/data/cmip5/rcp/rcp${rcpCode}.5/tos_warmpools"
+basename="ensemble_tos_rcp${rcpCode}5"
+
+${bindir}/make_warmpool.py -indir ${sstdir} -var 'mean_mean_tos' -fileBasename ${basename} -start ${startYear} -end ${endYear} -bounds 70 580 -out ${outdir}
 
 # _________________________________
 # \brief Computes tos ensemble means
@@ -102,6 +118,8 @@ function tosEM(){
     echo "Processing ensembleMean from "${dStart}" to "${dEnd}
     ${bindir}/make_ensembleMean_tyx.py -v ${var} -path ${indir} -outdir ${outdir} -minVar 263 -maxVar 320 -modelList ${model} -startYear ${dStart} -endYear ${dEnd} -rcp ${rcp}
     
+
+
     # produce some extra month for DHM 4 months rolling window
     dStart=$((decade - 1))
     dEnd=$((decade - 1))
@@ -112,7 +130,7 @@ function tosEM(){
 # \brief Computes thetao ensemble means
 function thetaoEM(){
     rcp=rcp85 #rcp45
-    model=modellist_thetao_rcp85.txt
+    model=modellist_thetao_rcp85_test.txt
     var=thetao
     indir=/databis/cmip5_bis/rcp/rcp8.5/thetao
     outdir=/data/tmp/new_algo/${var}_${rcp}
@@ -163,6 +181,9 @@ function trends(){
 # uv-cdat library must first be sourced
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
+wp 2010 2059 8 
+
+
 #for ii in $(seq 2010 10 2080 )
 #do
 #    omlmaxEM $ii rcp85
@@ -170,14 +191,27 @@ source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 #trends 'tos' 'esm'
 
 #tosEM 2010 rcp85
-
+#dhm 2010 rcp85
+#tosEM 2020 rcp85
+#dhm 2020 rcp85
+#tosEM 2030 rcp85
 #tosEM 2040 rcp85
 #dhm 2040 rcp85
 
+#tosEM 2010 rcp45
+#dhm 2010 rcp45
+#tosEM 2020 rcp45
+#dhm 2020 rcp45
 #tosEM 2030 rcp45
 #tosEM 2040 rcp45
 #tosEM 2050 rcp45
-dhm 2030 rcp85
-dhm 2040 rcp85
-dhm 2050 rcp85
+#dhm 2030 rcp85
+#dhm 2040 rcp85
+#dhm 2050 rcp85
+#dhm 2030 rcp45
+#dhm 2040 rcp45
+#dhm 2050 rcp45
+
 #thetaoEM
+
+# end of script
