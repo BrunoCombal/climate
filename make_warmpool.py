@@ -111,9 +111,6 @@ def do_interp(data, lower, upper, xs,xe,ys,ye):
 # ___________________________
 # WP definition: all values must be >= threshold
 def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, latWindow=None):
-    
-    latWindow=[70, 580]
-
 
     threshold = 28 + 273.15
     nodata = 1.e20
@@ -243,7 +240,7 @@ def do_yearlyWPall(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, la
     return areaWP
 # ____________________________
 # WP definition: average annual temperature >= threshold
-def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, threshold=28.5+273.15):
+def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, threshold=28.5+273.15, latWindow=None):
     nodata=1.e20
     varUnits=None
     thisFilter=numpy.ones((3,3))
@@ -253,6 +250,7 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
     factor = 1 #(2*85*360) /( 360.0*180.0)
 
     areaWP=[]
+    latWindowMatrix = None
     for iyear in range(yearStart, yearEnd+1):
         tempAvg=None
         wdata=None
@@ -265,6 +263,14 @@ def do_yearlyWPAvg(sstdir, sstrootname, variable, outdir, yearStart, yearEnd, th
             fname = '{0}/{1}_{2}.nc'.format(sstdir, sstrootname, idate)
             thisFile = cdms2.open(fname)
             thisVar = numpy.ravel(thisFile[variable][:])
+    
+            if latWindow is not None:
+                if latWindowMatrix is None:
+                    latWindowMatrix = numpy.zeros(thisVar.shape)
+                    for ii in xrange(latWindow[0], latWindow[1]+1):
+                        latWindowMatrix[:][ii] = 1
+                thisVarTmp = thisVar
+                thisVar = numpy.multiply( thisVarTmp, numpy.ravel(latWindowMatrix) )
 
             if tempAvg is None: # settings
                 thisGrid = thisFile[variable].getGrid()
@@ -335,7 +341,7 @@ if __name__=="__main__":
         if arg == '-indir':
             ii = ii + 1
             sstdir=sys.argv[ii]
-        elif arg == '-fileBasename':
+        elif arg == '-filebasename':
             ii = ii + 1
             fileBasename=sys.argv[ii]
         elif arg == '-start':
@@ -380,7 +386,7 @@ if __name__=="__main__":
 #    outdir='/data/cmip5/rcp/rcp{0}.5/tos_warmpools'.format(rcp)
     
     # all temp, projections
-    areaWP = do_yearlyWPAvg(sstdir, fileBasename, var, outdir, startYear, endYear, bounds)
+    areaWP = do_yearlyWPAvg(sstdir, fileBasename, var, outdir, startYear, endYear, threshold=28.5+273.15, latWindow=bounds)
     # avg temp, projections
     #areaWP = do_yearlyWPAvg(sstdir, 'modelmean_tos', 'tos', outdir, 2006, 2059, 28+273.15)
     # avg temp, hist
