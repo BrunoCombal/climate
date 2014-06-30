@@ -384,9 +384,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                                                                        numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
                                                                        minVar, maxVar, nodata )
                 
-                units= ifile[variable].units
-
-                
+                units= ifile[variable].units                
 
             # compute average
             # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
@@ -425,11 +423,15 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
                 createdFiles['{0}{1:02}'.format(iyear,imonth)] = outfilename
 
+                del wtdivide
+                gc.collect()
+
+            del accumVar, mini, maxi, accumN
+            gc.collect()
+
     # close input files
     for ii in listFID: ii.close()
 
-    del wtdivide, accumVar, mini, maxi, accumN
-    gc.collect()
     return(createdFiles)
 #___________________________
 if __name__=="__main__":
