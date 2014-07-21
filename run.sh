@@ -8,20 +8,22 @@
 
 # _________________________________
 # \brief compute warm pool
-bindir=${HOME}/github/misc
-
-startYear=$1
-endYear=$2
-rcpCode=$3
-
-#sstdir='/data/tmp/new_algo/tos_rcp85'
-sstdir="/data/tmp/new_algo/tos_rcp${rcpCode}5"
-#    sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
-outdir="/data/cmip5/rcp/rcp${rcpCode}.5/tos_warmpools"
-basename="ensemble_tos_rcp${rcpCode}5"
-
-${bindir}/make_warmpool.py -indir ${sstdir} -var 'mean_mean_tos' -fileBasename ${basename} -start ${startYear} -end ${endYear} -bounds 70 580 -out ${outdir}
-
+function wp(){
+    bindir=${HOME}/github/climate
+    
+    startYear=$1
+    endYear=$2
+    rcpCode=$3
+    
+    #sstdir='/data/tmp/new_algo/tos_rcp85'
+    sstdir="/data/tmp/new_algo/tos_rcp${rcpCode}5"
+    #sstdirHist='/data/cmip5/rcp/rcp8.5/toshist_ensemble'
+    outdir="/data/cmip5/rcp/rcp${rcpCode}.5/tos_warmpools"
+    mkdir -p ${outdir}
+    basename="ensemble_tos_rcp${rcpCode}5"
+    
+    ${bindir}/make_warmpool.py -indir ${sstdir} -var 'mean_mean_tos' -fileBasename ${basename} -start ${startYear} -end ${endYear} -bounds 70 580 -outdir ${outdir}
+}
 # _________________________________
 # \brief Computes tos ensemble means
 # $1 decade
@@ -182,7 +184,6 @@ function trends(){
 source /usr/local/uvcdat/1.2.0/bin/setup_cdat.sh
 
 wp 2010 2059 8 
-
 
 #for ii in $(seq 2010 10 2080 )
 #do

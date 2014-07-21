@@ -369,6 +369,11 @@ def do_stats(variable, resolution, validYearList, monthList, lstInFile, outdir, 
                         [accumVar, accumN, mini, maxi]= updateCounters(accumVar, accumN, mini, maxi,
                                                                        numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
                                                                        minVar, maxVar, nodata )
+                    else:
+                        exitMessage('Error in time axis processing. Exit(101)', 101)
+
+            units= ifile[variable].units
+
 
             # compute average
             # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
