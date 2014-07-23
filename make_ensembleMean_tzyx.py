@@ -347,9 +347,11 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     # open all files
     listFID=[]
     thisLogger.debug('Averaging with files: ')
+    print lstInFile
     for ifile in lstInFile: 
-        listFID.append(cdms2.open(ifile, 'r'))
         thisLogger.debug(ifile)
+        listFID.append(cdms2.open(ifile, 'r'))
+
 
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
