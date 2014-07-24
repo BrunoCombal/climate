@@ -346,8 +346,6 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
     # open all files
     listFID=[]
-    thisLogger.debug('Averaging with files: ')
-    print lstInFile
     for ifile in lstInFile: 
         thisLogger.debug(ifile)
         listFID.append(cdms2.open(ifile, 'r'))
@@ -578,13 +576,21 @@ if __name__=="__main__":
 
     if len(modelList)==1:
         thisLogger.info('>>> 1 model in input: job finished after first averaging round.')
+    elif len(processedFiles)==0:
+        thisLogger.info('>>>> no data to process')
     else:
         thisLogger.info( '>> Averaging models averages, for each date')
         for idate in processedFiles: # iteration over keys
+            thisLogger.info('I see idate={0}'.format(idate))
             thisYear = int(idate[0:4])
             thisMonth= int(idate[4:6])
             thisLogger.info('>> Averaging date {0}'.format(idate))
             listFiles = [x for x in flatten(processedFiles[idate])]
+
+            thisLogger.info('printing info')
+            for zz in lstFiles:
+                thisLogger.info('files {0}'.format(zz))
+
             thisLogger.info('>> averaging files '.format(listFiles))
             returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
             gc.collect()
