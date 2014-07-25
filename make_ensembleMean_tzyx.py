@@ -346,10 +346,13 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
     # open all files
     listFID=[]
-    for ifile in lstInFile: 
-        thisLogger.debug(ifile)
+    if type(lstInFile)==type([]):
+        for ifile in lstInFile: 
+            listFID.append(cdms2.open(ifile, 'r'))
+    elif type(lstInFile)==type('string'):
         listFID.append(cdms2.open(ifile, 'r'))
-
+    else:
+        exitMessage('Unknown type for object lstInFile. Exit(200)',200)
 
     # go through the list of dates, compute ensemble average
     for iyear in validYearList:
@@ -581,15 +584,10 @@ if __name__=="__main__":
     else:
         thisLogger.info( '>> Averaging models averages, for each date')
         for idate in processedFiles: # iteration over keys
-            thisLogger.info('I see idate={0}'.format(idate))
             thisYear = int(idate[0:4])
             thisMonth= int(idate[4:6])
             thisLogger.info('>> Averaging date {0}'.format(idate))
             listFiles = [x for x in flatten(processedFiles[idate])]
-
-            thisLogger.info('printing info')
-            for zz in lstFiles:
-                thisLogger.info('files {0}'.format(zz))
 
             thisLogger.info('>> averaging files '.format(listFiles))
             returnedList = do_stats('mean_{0}'.format(variable), [thisYear], [thisMonth], listFiles, outdir, 'ensemble', '{0}_{1}'.format(variable, rcp) , minVar, maxVar)
@@ -599,5 +597,4 @@ if __name__=="__main__":
     if deleteTmp:
         shutil.rmtree(tmpdir)
             
-
 # end of file
