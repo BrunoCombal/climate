@@ -346,10 +346,13 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
 
     # open all files
     listFID=[]
+    thisLogger.debug('XXX type: {0}'.format(type(lstInFile)))
     if type(lstInFile)==type([]):
+        thisLogger.debug('An array')
         for ifile in lstInFile: 
             listFID.append(cdms2.open(ifile, 'r'))
-    elif type(lstInFile)==type('string'):
+    elif type(lstInFile)==type(''):
+        thisLogger.debug('A string {0}'.format(lstInFile))
         listFID.append(cdms2.open(lstInFile, 'r'))
     else:
         exitMessage('Unknown type for object lstInFile. Exit(200)',200)
