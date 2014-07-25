@@ -350,7 +350,7 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
         for ifile in lstInFile: 
             listFID.append(cdms2.open(ifile, 'r'))
     elif type(lstInFile)==type('string'):
-        listFID.append(cdms2.open(ifile, 'r'))
+        listFID.append(cdms2.open(lstInFile, 'r'))
     else:
         exitMessage('Unknown type for object lstInFile. Exit(200)',200)
 
