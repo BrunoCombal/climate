@@ -348,9 +348,9 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     listFID=[]
     if type(lstInFile)==type([]):
         for ifile in lstInFile: 
-        	thisLogger.debug('Case 1, ifile={0}'.format(ifile))
-        	if not os.path.isfile(ifile):
-        		exitMessage('File {0} not found. Exit 201.'.format(ifile), 201)
+            thisLogger.debug('Case 1, ifile={0}'.format(ifile))
+            if not os.path.isfile(ifile):
+                exitMessage('File {0} not found. Exit 201.'.format(ifile), 201)
             listFID.append(cdms2.open(ifile, 'r'))
     elif type(lstInFile)==type(''):
     	thisLogger.debug('Case 2, lstInFile={0}'.format(lstInFile))
