@@ -347,16 +347,18 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     # open all files
     listFID=[]
     if type(lstInFile)==type([]):
-        for ifile in lstInFile: 
-            thisLogger.debug('Case 1, ifile={0}'.format(ifile))
+        if len(lstInFile[0]) == 1: #the first element is a char, so there is only 1 file
+            ifile = ''.join(lstInFile)
+            thisLogger.debug('Case 2, lstInFile={0}'.format(ifile))
             if not os.path.isfile(ifile):
-                exitMessage('File {0} not found. Exit 201.'.format(ifile), 201)
+                    exitMessage('File {0} not found. Exit 202'.format(lstInFile), 202)
             listFID.append(cdms2.open(ifile, 'r'))
-    elif type(lstInFile)==type(''):
-    	thisLogger.debug('Case 2, lstInFile={0}'.format(lstInFile))
-    	if not os.path.isfile(lstInFile):
-    		exitMessage('File {0} not found. Exit 202'.format(lstInFile), 202)
-        listFID.append(cdms2.open(lstInFile, 'r'))
+        else:
+            for ifile in lstInFile:
+                thisLogger.debug('Case 1, ifile={0}'.format(ifile))
+                if not os.path.isfile(ifile):
+                    exitMessage('File {0} not found. Exit 201.'.format(ifile), 201)
+                listFID.append(cdms2.open(ifile, 'r'))
     else:
         exitMessage('Unknown type for object lstInFile. Exit(200)',200)
 
