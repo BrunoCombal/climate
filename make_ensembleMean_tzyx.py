@@ -65,7 +65,8 @@ def decodeMonthList(parameter):
     listMonth = [int(x) for x in parameter.strip().split(',')]
     for ii in listMonth:
         if ii<1 or ii>12:
-            exitMessage('month defined in the month list must be in [1, 12]. Exit(100).',100)
+            print 'month defined in the month list must be in [1, 12]. Exit(100).'
+            sys.exit(100)
     return listMonth
 # ____________________________
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -103,8 +104,8 @@ def agregateDict(refDict, newDict):
         if ikey in newDict.keys(): val.append( newDict[ikey] )
         result[ikey] = [ x for x in flatten(val) ]
 
-    del val
-    gc.collect()
+    #del val
+    #gc.collect()
     return result
 # ____________________________
 def make_levels():
@@ -205,13 +206,15 @@ def autoMask(var, nodata):
             tmp[ii, wtnodata] = nodata
         var[:] = numpy.reshape(tmp, refshape)
     
-    del tmp, wtnodata
-    gc.collect()
+    #del tmp, wtnodata
+    #gc.collect()
     return var
 # ____________________________
 def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
 
     if data is None:
+        print 'no data passed!'
+        sys.exit()
         return [accum, N, mini, maxi]
 
     dim = numpy.squeeze(data[:]).shape
@@ -232,9 +235,11 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
     if wtadd.any():
         accum[wtadd] = accum[wtadd] + data[wtadd]
         N[wtadd] = N[wtadd] + 1 #numpy.ones(dim)
+        print '!!N is not null'
     if wtreplace.any():
         accum[wtreplace] = data[wtreplace]
         N[wtreplace] = 1 #numpy.ones(dim)
+        print 'xx N is not null'
     if wmax.any():
         maxi[wmax] = data[wmax]
     if wmin.any():
@@ -244,8 +249,10 @@ def updateCounters(accum, N, mini, maxi, data, minVar, maxVar, nodata=1.e20):
     if wminReplace.any():
         mini[wminReplace] = data[wminReplace]
         
-    del wtadd, wtreplace, wmax, wmaxReplace, wmin, wminReplace
-    gc.collect()
+    #del wtadd, wtreplace, wmax, wmaxReplace, wmin, wminReplace
+    #gc.collect()
+    if N is None:
+        print 'N is None'
     return [accum, N, mini, maxi]
 # ___________________________
 def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, topLevel=0, bottomLevel=1000):
@@ -254,11 +261,14 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
     nodata=1.e20
     
     if lstInFile is None:
-        thisLogger.info( 'No file to process. Return' )
+        thisLogger.info( 'do_regrid: No file to process. Return' )
+        sys.exit()
         return None
 
     if len(lstInFile)==0:
-        thisLogger.info('Found no file to process, consider revising search pattern. Return.')
+        print 'lstInFile'
+        thisLogger.info('do_regrid: Found no file to process, consider revising search pattern. Return.')
+        sys.exit()
         return None
 
     (newGrid, latAxis, lonAxis, lat_bnds, lon_bnds) = makeGrid()
@@ -285,7 +295,7 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
             # let's process our mask by identifying unchanged values
             tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
             data = autoMask(tmp, nodata)
-            del tmp
+            #del tmp
             gc.collect()
         else:
             verticalGrid = make_levels()
@@ -297,8 +307,8 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
             if thisFile[variable].getMissing() is None:
                 tmp = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') ))
                 data = autoMask(tmp, nodata)
-                del tmp
-                gc.collect()
+                #del tmp
+                #gc.collect()
             else:
                 data = cdms2.createVariable(thisFile[variable].subRegion( time=(startTime[0], endTime[-1], 'cc'), level=(topLevel, bottomLevel,'cc') )) 
 
@@ -319,11 +329,11 @@ def do_regrid(variable, lstInFile, outdir, stringBefore, yearStart, yearEnd, top
         outfile.close()
         thisFile.close()
 
-        del mask, regrided
-        gc.collect()
+        #del mask, regrided
+        #gc.collect()
 
-    del newGrid, latAxis, lonAxis, lat_bnds, lon_bnds
-    gc.collect()
+    #del newGrid, latAxis, lonAxis, lat_bnds, lon_bnds
+    #gc.collect()
     return createdFiles
 # ___________________________
 # for a list of files: open all files, go from date 1 to date 2, compute avg for thisdate, save thisdate
@@ -336,12 +346,14 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
     createdFiles={}   
     nodata=1.e20
 
+    print 'in do_stats, variable={0}'.format(variable)
+
     if lstInFile is None:
-        thisLogger.info('No file to process. Return.')
+        thisLogger.info('do_stats: No file to process. Return.')
         return
 
     if len(lstInFile)==0:
-        thisLogger.info('Found no file to process, consider revising search pattern.')
+        thisLogger.info('do_stats: Found no file to process, consider revising search pattern.')
         return
 
     # open all files
@@ -374,9 +386,13 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
             dims=None
             units=None
             for ifile in listFID:
+                print 'in do_stats, ifile loop,'
+                print 'ready to get data for time: ',iyear, imonth
 
                 if ifile[variable].getTime() is None: # no time reference
+                    print 'no time found'
                     if refGrid is None: 
+                        print 'no refgrid'
                         refGrid = ifile[variable].getGrid()
                         # axis=ifile[variable].getAxisList(omit='time')
                         dims=numpy.squeeze(ifile[variable]).shape
@@ -384,8 +400,11 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                                                                      numpy.array(ifile[variable]).ravel(),
                                                                      minVar, maxVar, nodata)
                 else: # we can do some time slice
-                    thisTime = [ii for ii in ifile[variable].getTime().asComponentTime() if (ii.year==iyear and ii.month==imonth)] 
-                    if len(thisTime)==1:
+                    print "GETTTING TIME COMPONENET for ",iyear, imonth
+                    thisTime = [ii for ii in ifile[variable].getTime().asComponentTime() if (ii.year==iyear and ii.month==imonth)]
+                    for ii in ifile[variable].getTime().asComponentTime():
+                        print ii, ii.year , ii.month
+                    if len(thisTime)==1: # it must be one
                         if refGrid is None:
                             refGrid = ifile[variable].getGrid()
                             dims = numpy.squeeze(ifile[variable].subRegion(time=thisTime[0])).shape
@@ -395,13 +414,23 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                                                                        numpy.array( ifile[variable].subRegion(time=thisTime[0])).ravel(),
                                                                        minVar, maxVar, nodata )
                 
+                    else:
+                        print ifile[variable].getTime().asComponentTime()
+                        print '================'
+                        print monthList
+                        print 'iyear',iyear, ' imonth',imonth, len(thisTime), thisTime.shape
+                        for ii in ifile[variable].getTime().asComponentTime():
+                            print '::',ii, ii.year, ii.month
+                            print '________'
+                        exitMessage('Found more that 1 date!!! Stop processing')
                 units= ifile[variable].units                
-
+            
             # compute average
             # it can happen that there is no data to process: if the input files for the current model has an ending date before the current date
             # in this case, accumN is None: do not save stats, and do not add a file name in createdFiles
             # compute average
             if accumN is not None:
+                print 'accumN is not None'
                 wtdivide = (accumN < nodata) * (accumN > 0)
 
                 if wtdivide.any():
@@ -433,15 +462,23 @@ def do_stats(variable, validYearList, monthList, lstInFile, outdir, stringBefore
                 outfile.close()
 
                 createdFiles['{0}{1:02}'.format(iyear,imonth)] = outfilename
+                print 'in do_stats, variable={0}, adding in createdFiles {1}'.format(variable, outfilename)
 
-                del wtdivide
-                gc.collect()
+                #del wtdivide
+                #gc.collect()
 
-            del accumVar, mini, maxi, accumN
-            gc.collect()
+            else:
+                print 'accumN is None, nothing to do'
+                sys.exit()
+
+            #del accumVar, mini, maxi, accumN
+            #gc.collect()
 
     # close input files
     for ii in listFID: ii.close()
+
+    print 'in do_stats, variable={0}, returning with'.format(variable)
+    print createdFiles
 
     return(createdFiles)
 #___________________________
@@ -570,15 +607,18 @@ if __name__=="__main__":
     for thisModel in modelList:
         thisLogger.info('Model {0}'.format(thisModel))
         pattern=re.compile('{0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') )
+        print 'indir: {0}'.format(indir)
+        print 'expression {0}_{1}_{2}_{3}_{4}_{5}.nc'.format(variable, 'Omon', thisModel, rcp, 'r.*i.*p.*', '.*') 
         lstInFile=[f for f in glob.glob('{0}/*.nc'.format(indir)) if (os.stat(f).st_size and pattern.match(os.path.basename(f) ) ) ]
 
         if regridFirst:
+            print 'Calling do_regrid with lstInFile=', lstInFile
             regridedFiles = do_regrid(variable, lstInFile, tmpdir, 'regrid_', startYear, endYear, topLevel, bottomLevel)
         else:
             regridedFiles = lstInFile
 
         thisModelFiles = do_stats(variable, validYearList, monthList, regridedFiles, tmpdir, 'stats', '{0}_{1}_{2}'.format(variable,thisModel, rcp), minVar, maxVar )
-
+        print 'accumulating thisModelFiles ',thisModelFiles
         if deleteRegrid:
             for ii in regridedFiles: os.remove(ii)
 
